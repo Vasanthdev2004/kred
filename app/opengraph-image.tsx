@@ -195,7 +195,11 @@ export default async function OpengraphImage() {
                   lineHeight: 1.05,
                 }}
               >
-                <div style={{ display: "flex", color: "#F0F5F5" }}>on&nbsp;</div>
+                <div
+                  style={{ display: "flex", color: "#F0F5F5", marginRight: "20px" }}
+                >
+                  on
+                </div>
                 <div
                   style={{
                     display: "flex",
