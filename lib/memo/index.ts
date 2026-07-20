@@ -18,7 +18,6 @@ import {
   stringToHex,
   type Address,
   type Hex,
-  type Log,
 } from "viem";
 import { z } from "zod";
 import { ARC } from "@/config/arc";
@@ -124,50 +123,6 @@ export function buildPayWithMemo(params: PayWithMemoParams) {
 }
 
 /* ------------------------------------------------------------------ read */
-
-/** Event fragment to pass to viem `getLogs({ event: MEMO_EVENT })`. */
-export const MEMO_EVENT = MEMO_ABI.find(
-  (x) => x.type === "event" && x.name === "Memo",
-)!;
-
-export interface DecodedMemoLog {
-  txHash: Hex;
-  logIndex: number;
-  sender: Address; // payer
-  target: Address; // called contract (token)
-  memoId: Hex;
-  callDataHash: Hex;
-  memo: PayslipMemo | null;
-  raw: Hex; // raw memo bytes
-}
-
-/**
- * Normalize a decoded Memo log (from viem getLogs with the Memo event) into our shape.
- * `log.args` is present because viem decodes when an `event` is supplied.
- */
-export function normalizeMemoLog(
-  log: Log & {
-    args: {
-      sender: Address;
-      target: Address;
-      callDataHash: Hex;
-      memoId: Hex;
-      memo: Hex;
-      memoIndex: bigint;
-    };
-  },
-): DecodedMemoLog {
-  return {
-    txHash: log.transactionHash as Hex,
-    logIndex: log.logIndex ?? 0,
-    sender: log.args.sender,
-    target: log.args.target,
-    memoId: log.args.memoId,
-    callDataHash: log.args.callDataHash,
-    memo: decodeMemoData(log.args.memo),
-    raw: log.args.memo,
-  };
-}
 
 const MEMO_ADDR_LC = MEMO_ADDRESS.toLowerCase();
 

@@ -7,17 +7,10 @@
  * Both are chain-derived. The DB never stores amounts. The /verify route (F5) reuses
  * `enrichMemos` / receipt recompute on a specific disclosed tx set (trustless, no scan).
  */
-import {
-  decodeEventLog,
-  getAddress,
-  type Address,
-  type Hex,
-  type PublicClient,
-} from "viem";
+import { getAddress, type Address, type Hex, type PublicClient } from "viem";
 import { ARC } from "@/config/arc";
-import { MEMO_ABI } from "@/lib/abi";
 import { tokenByAddress, type TokenMeta } from "@/lib/tokens";
-import { decodeMemoData, MEMO_ADDRESS, type PayslipMemo } from "@/lib/memo";
+import { parseMemoFromLogs, type PayslipMemo } from "@/lib/memo";
 
 export interface Payment {
   txHash: Hex;
@@ -123,31 +116,8 @@ async function mapLimit<T, R>(
   return results;
 }
 
-const MEMO_ADDR_LC = MEMO_ADDRESS.toLowerCase();
-
-/** Decode the first Memo event in a receipt's logs, if any. */
-function memoFromLogs(
-  logs: readonly { address: string; topics: readonly Hex[]; data: Hex }[],
-): { memo: PayslipMemo | null; memoId: Hex } | null {
-  for (const log of logs) {
-    if (log.address.toLowerCase() !== MEMO_ADDR_LC) continue;
-    try {
-      const decoded = decodeEventLog({
-        abi: MEMO_ABI,
-        data: log.data,
-        topics: log.topics as [Hex, ...Hex[]],
-      });
-      if (decoded.eventName !== "Memo") continue;
-      const args = decoded.args as unknown as { memo: Hex; memoId: Hex };
-      return { memo: decodeMemoData(args.memo), memoId: args.memoId };
-    } catch {
-      /* not a Memo log we understand */
-    }
-  }
-  return null;
-}
-
-/** Attach decoded memos to payments by reading each tx receipt (bounded). */
+/** Attach decoded memos to payments by reading each tx receipt (bounded).
+ *  Memo decoding lives in the lib/memo adapter (single source of truth). */
 export async function enrichMemos(
   client: PublicClient,
   payments: Payment[],
@@ -157,7 +127,7 @@ export async function enrichMemos(
   await mapLimit(targets, 8, async (p) => {
     try {
       const receipt = await client.getTransactionReceipt({ hash: p.txHash });
-      const found = memoFromLogs(receipt.logs);
+      const found = parseMemoFromLogs(receipt.logs);
       if (found) {
         p.memo = found.memo;
         p.memoId = found.memoId;

@@ -23,13 +23,16 @@ Payslip reads both (F1) and writes them (F3). See [`docs/arc-notes.md`](docs/arc
 
 | | Feature | Status |
 |---|---|---|
-| F1 | Connect + index incoming USDC/EURC on Arc | ◻ M1 |
-| F2 | Decode memos + manual tagging | ◻ M2 |
-| F3 | **Pay-with-memo** request/payer flow (the showcase) | ◻ M3 |
-| F4 | Income statement + charts + branded PDF | ◻ M4 |
-| F5 | Public verify page + selective disclosure | ◻ M5 |
-| F6 | On-chain statement anchor (stretch) | ◻ M6 |
-| F7 | Polished, responsive, dark/light UI | ◻ ongoing |
+| F1 | Connect + index incoming USDC/EURC on Arc | ✅ |
+| F2 | Decode memos + manual tagging | ✅ |
+| F3 | **Pay-with-memo** request/payer flow (the showcase) | ✅ |
+| F4 | Income statement + charts + branded PDF | ✅ |
+| F5 | Public verify page + selective disclosure (trustless recompute) | ✅ |
+| F6 | On-chain statement anchor | ◻ stretch |
+| F7 | Polished, responsive, dark/light UI (WebGL fluid hero) | ✅ · ongoing polish |
+
+All correctness-critical paths went through an adversarial multi-agent review pass
+before this status was claimed — see `PROGRESS.md`.
 
 ## Stack
 
