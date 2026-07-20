@@ -44,8 +44,8 @@ Running log of milestones. Chain is the source of truth; DB is metadata only.
     unverifiable tx is honestly excluded, bogus id 404s, tsc clean.
 - [ ] **M6 (stretch) — KredRegistry anchor (F6)**
 - [~] **M7 — deploy ✅ (Railway) · polish/demo remaining**
-  - Live: https://payslip-production-409a.up.railway.app
-  - Railway project `payslip` + managed Postgres (persistent volume); Prisma on
+  - Live: https://kred-production-5475.up.railway.app
+  - Railway project `kred` + managed Postgres (persistent volume); Prisma on
     postgresql; `migrate deploy` pre-deploy; local dev shares the same DB.
   - Verified live: all routes 200 + a real disclosure→verify recompute round-trip
     against Arc from the production server.
