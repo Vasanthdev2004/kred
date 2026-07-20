@@ -1,0 +1,50 @@
+import { defineChain } from "viem";
+
+/**
+ * Arc testnet — every value here was verified first-hand on 2026-07-20.
+ * See docs/arc-notes.md. Do not edit constants elsewhere.
+ */
+export const ARC_TESTNET_ID = 5042002;
+
+export const arcTestnet = defineChain({
+  id: ARC_TESTNET_ID,
+  name: "Arc Testnet",
+  // USDC is the native gas coin — 18 decimals as the NATIVE coin (ERC-20 is 6).
+  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.testnet.arc.network"],
+      webSocket: ["wss://rpc.testnet.arc.network"],
+    },
+  },
+  blockExplorers: {
+    default: { name: "Arcscan", url: "https://testnet.arcscan.app" },
+  },
+  testnet: true,
+});
+
+export const ARC = {
+  chainId: ARC_TESTNET_ID,
+  rpcUrl: "https://rpc.testnet.arc.network",
+  explorerUrl: "https://testnet.arcscan.app",
+  faucetUrl: "https://faucet.circle.com",
+  contracts: {
+    /** ERC-20 USDC interface (6 decimals). */
+    usdc: "0x3600000000000000000000000000000000000000",
+    /** ERC-20 EURC interface (6 decimals). */
+    eurc: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
+    /** Memo contract — wraps a call + emits Memo event. */
+    memo: "0x5294E9927c3306DcBaDb03fe70b92e01cCede505",
+    multicall3From: "0x522fAf9A91c41c443c66765030741e4AaCe147D0",
+    /** CALL_FROM precompile — preserves msg.sender through the memo wrapper. */
+    callFrom: "0x1800000000000000000000000000000000000003",
+  },
+} as const;
+
+/** Build an explorer URL for a tx / address / token. */
+export function explorerTx(hash: string): string {
+  return `${ARC.explorerUrl}/tx/${hash}`;
+}
+export function explorerAddress(addr: string): string {
+  return `${ARC.explorerUrl}/address/${addr}`;
+}

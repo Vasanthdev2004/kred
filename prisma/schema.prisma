@@ -1,0 +1,45 @@
+// Metadata store ONLY — tags + disclosure prefs. Never the source of truth for
+// amounts (that is always the Arc chain). Wired up in M2.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// User-supplied enrichment for a specific on-chain payment, keyed by (owner, tx, log).
+model Tag {
+  id        String   @id @default(cuid())
+  address   String // owner wallet, lowercased
+  txHash    String
+  logIndex  Int      @default(0)
+  client    String?
+  project   String?
+  category  String?
+  invoice   String?
+  period    String? // YYYY-MM
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([address, txHash, logIndex])
+  @@index([address])
+}
+
+/// A selective-disclosure config backing a /verify/[id] page. Stores WHICH txs and
+/// WHICH fields to reveal; the verify route recomputes amounts from chain.
+model Disclosure {
+  id          String   @id @default(cuid())
+  address     String // owner wallet, lowercased
+  label       String?
+  periodStart String // YYYY-MM
+  periodEnd   String // YYYY-MM
+  fields      String // JSON array of visible field keys
+  txHashes    String // JSON array of included tx hashes
+  createdAt   DateTime @default(now())
+
+  @@index([address])
+}
