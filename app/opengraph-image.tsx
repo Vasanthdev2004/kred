@@ -5,88 +5,39 @@ export const alt = "Kred — Verifiable proof-of-income on Arc";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Default Node runtime (no `runtime = "edge"`) for reliability.
-// FULLY self-contained: no remote fonts, no remote images, no fetch().
-// Uses next/og's built-in default font.
+// Self-contained (no remote fonts/images) AND uses only Satori-safe CSS:
+// solid colors, linear-gradient, flexbox, border-radius, background-clip:text.
+// Deliberately NO radial-gradient and NO inline-SVG gradient fills — Satori's
+// parser rejects `radial-gradient(<size> at <pos>, …)` and gradient <defs>,
+// which is what failed the Railway build. Renders on Linux (Railway).
 
-// Brand gradient used for accent text/marks.
-const gradientText = {
-  backgroundImage: "linear-gradient(120deg, #31DB90 0%, #1FC7E6 100%)",
-  backgroundClip: "text" as const,
-  WebkitBackgroundClip: "text" as const,
-  color: "transparent",
-};
+const BRAND = "linear-gradient(120deg, #31DB90 0%, #1FC7E6 100%)";
 
-/** Kred K-mark inside a rounded tile (matches app/icon.svg). */
-function KTile({ dim, id }: { dim: number; id: string }) {
+/** Brand mark: a gradient tile with a dark "K". SVG-free for Satori safety. */
+function KMark({ tile, font }: { tile: number; font: number }) {
   return (
-    <svg
-      width={dim}
-      height={dim}
-      viewBox="0 0 100 100"
-      xmlns="http://www.w3.org/2000/svg"
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: `${tile}px`,
+        height: `${tile}px`,
+        borderRadius: `${Math.round(tile * 0.26)}px`,
+        backgroundImage: BRAND,
+      }}
     >
-      <defs>
-        <linearGradient
-          id={id}
-          x1="28"
-          y1="24"
-          x2="76"
-          y2="80"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#31DB90" />
-          <stop offset="1" stopColor="#1FC7E6" />
-        </linearGradient>
-      </defs>
-      <rect width="100" height="100" rx="24" fill="#0E1318" />
-      <g
-        fill={`url(#${id})`}
-        stroke={`url(#${id})`}
-        strokeWidth="2.4"
-        strokeLinejoin="round"
+      <div
+        style={{
+          display: "flex",
+          fontSize: `${font}px`,
+          fontWeight: 700,
+          color: "#08110D",
+        }}
       >
-        <rect x="27" y="24" width="16" height="52" rx="5" strokeWidth="0" />
-        <path d="M46 47 L62 24 L79 24 Z" />
-        <path d="M46 53 L56 53 L79 76 L69 76 Z" />
-      </g>
-    </svg>
-  );
-}
-
-/** Large translucent K watermark (no tile) for the right-side bleed. */
-function KWatermark({ dim, id }: { dim: number; id: string }) {
-  return (
-    <svg
-      width={dim}
-      height={dim}
-      viewBox="0 0 100 100"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <defs>
-        <linearGradient
-          id={id}
-          x1="20"
-          y1="16"
-          x2="82"
-          y2="84"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#31DB90" />
-          <stop offset="1" stopColor="#1FC7E6" />
-        </linearGradient>
-      </defs>
-      <g
-        fill={`url(#${id})`}
-        stroke={`url(#${id})`}
-        strokeWidth="2.4"
-        strokeLinejoin="round"
-      >
-        <rect x="25" y="23" width="16" height="54" rx="5" strokeWidth="0" />
-        <path d="M44 47 L61 23 L79 23 Z" />
-        <path d="M44 53 L55 53 L80 77 L69 77 Z" />
-      </g>
-    </svg>
+        K
+      </div>
+    </div>
   );
 }
 
@@ -103,23 +54,22 @@ export default async function OpengraphImage() {
           position: "relative",
           overflow: "hidden",
           backgroundColor: "#0A0B0D",
-          backgroundImage:
-            "radial-gradient(1120px 560px at 8% -12%, rgba(49,219,144,0.22), transparent 58%), radial-gradient(1040px 660px at 112% 120%, rgba(31,199,230,0.20), transparent 55%)",
           padding: "62px 76px",
         }}
       >
-        {/* Right-side K watermark bleed (painted first = behind content) */}
+        {/* Ambient corner wash (linear-gradient — Satori-safe) */}
         <div
           style={{
             display: "flex",
             position: "absolute",
-            top: "78px",
-            right: "-96px",
-            opacity: 0.09,
+            top: "0px",
+            left: "0px",
+            right: "0px",
+            bottom: "0px",
+            backgroundImage:
+              "linear-gradient(125deg, rgba(49,219,144,0.16) 0%, rgba(49,219,144,0) 34%, rgba(31,199,230,0) 66%, rgba(31,199,230,0.16) 100%)",
           }}
-        >
-          <KWatermark dim={620} id="kred-wm" />
-        </div>
+        />
 
         {/* Header */}
         <div
@@ -138,7 +88,7 @@ export default async function OpengraphImage() {
               gap: "20px",
             }}
           >
-            <KTile dim={72} id="kred-logo" />
+            <KMark tile={72} font={44} />
             <div
               style={{
                 display: "flex",
@@ -160,8 +110,8 @@ export default async function OpengraphImage() {
               gap: "12px",
               padding: "12px 22px",
               borderRadius: "999px",
-              backgroundColor: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.09)",
+              backgroundColor: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.10)",
             }}
           >
             <div
@@ -170,8 +120,7 @@ export default async function OpengraphImage() {
                 width: "12px",
                 height: "12px",
                 borderRadius: "999px",
-                backgroundImage:
-                  "linear-gradient(120deg, #31DB90 0%, #1FC7E6 100%)",
+                backgroundImage: BRAND,
               }}
             />
             <div
@@ -179,7 +128,6 @@ export default async function OpengraphImage() {
                 display: "flex",
                 fontSize: "22px",
                 fontWeight: 600,
-                letterSpacing: "0.02em",
                 color: "#B7C4C8",
               }}
             >
@@ -208,40 +156,30 @@ export default async function OpengraphImage() {
             }}
           />
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "22px",
-            }}
-          >
+          <div style={{ display: "flex", flexDirection: "column" }}>
             {/* Eyebrow */}
             <div
               style={{
                 display: "flex",
                 fontSize: "21px",
                 fontWeight: 600,
-                letterSpacing: "0.2em",
+                letterSpacing: "0.16em",
                 color: "#7F9096",
+                marginBottom: "22px",
               }}
             >
               PROOF-OF-INCOME · POWERED BY ARC TRANSACTION MEMOS
             </div>
 
             {/* Headline */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
+            <div style={{ display: "flex", flexDirection: "column" }}>
               <div
                 style={{
                   display: "flex",
                   fontSize: "76px",
                   fontWeight: 700,
                   letterSpacing: "-0.035em",
-                  lineHeight: 1.04,
+                  lineHeight: 1.05,
                   color: "#F0F5F5",
                 }}
               >
@@ -251,15 +189,24 @@ export default async function OpengraphImage() {
                 style={{
                   display: "flex",
                   flexDirection: "row",
-                  alignItems: "flex-end",
                   fontSize: "76px",
                   fontWeight: 700,
                   letterSpacing: "-0.035em",
-                  lineHeight: 1.04,
+                  lineHeight: 1.05,
                 }}
               >
                 <div style={{ display: "flex", color: "#F0F5F5" }}>on&nbsp;</div>
-                <div style={{ display: "flex", ...gradientText }}>Arc</div>
+                <div
+                  style={{
+                    display: "flex",
+                    color: "transparent",
+                    backgroundImage: BRAND,
+                    backgroundClip: "text",
+                    WebkitBackgroundClip: "text",
+                  }}
+                >
+                  Arc
+                </div>
                 <div style={{ display: "flex", color: "#F0F5F5" }}>.</div>
               </div>
             </div>
@@ -268,11 +215,11 @@ export default async function OpengraphImage() {
             <div
               style={{
                 display: "flex",
-                maxWidth: "780px",
+                maxWidth: "800px",
                 fontSize: "27px",
-                fontWeight: 400,
                 lineHeight: 1.4,
                 color: "#98A6AB",
+                marginTop: "24px",
               }}
             >
               Turn on-chain stablecoin payments into a private, selectively
@@ -296,19 +243,18 @@ export default async function OpengraphImage() {
               flexDirection: "row",
               alignItems: "center",
               gap: "14px",
-              padding: "14px 22px 14px 16px",
+              padding: "13px 22px 13px 14px",
               borderRadius: "999px",
               backgroundColor: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(255,255,255,0.10)",
             }}
           >
-            <KTile dim={34} id="kred-chip" />
+            <KMark tile={34} font={21} />
             <div
               style={{
                 display: "flex",
                 fontSize: "26px",
                 fontWeight: 600,
-                letterSpacing: "-0.01em",
                 color: "#EAF1F1",
               }}
             >
@@ -324,8 +270,8 @@ export default async function OpengraphImage() {
               gap: "12px",
               padding: "13px 24px",
               borderRadius: "999px",
-              backgroundColor: "rgba(49,219,144,0.06)",
-              border: "1px solid rgba(49,219,144,0.22)",
+              backgroundColor: "rgba(49,219,144,0.07)",
+              border: "1px solid rgba(49,219,144,0.24)",
             }}
           >
             <div
@@ -334,8 +280,7 @@ export default async function OpengraphImage() {
                 width: "10px",
                 height: "10px",
                 borderRadius: "999px",
-                backgroundImage:
-                  "linear-gradient(120deg, #31DB90 0%, #1FC7E6 100%)",
+                backgroundImage: BRAND,
               }}
             />
             <div
@@ -343,7 +288,6 @@ export default async function OpengraphImage() {
                 display: "flex",
                 fontSize: "23px",
                 fontWeight: 500,
-                letterSpacing: "0.01em",
                 color: "#B7C4C8",
               }}
             >
