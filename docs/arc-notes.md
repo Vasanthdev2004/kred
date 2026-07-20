@@ -99,10 +99,22 @@ JSON is fine. Keep it small anyway — it's calldata the payer pays gas on.
 
 ## Reading payment history
 
-Standard EVM: `getLogs` the ERC-20 `Transfer(address indexed from, address indexed to,
-uint256 value)` event on USDC + EURC, filtered by `to = user`. Enrich each with its
-`Memo` event (same tx). The **chain is the source of truth for every amount**; the DB
-stores only tags + disclosure prefs.
+The **chain is the source of truth for every amount**; the DB stores only tags +
+disclosure prefs. Two hard-won specifics (verified 2026-07-20):
+
+1. **`eth_getLogs` is capped to a 10,000-block range** (`-32614`), over a chain that is
+   already ~52M blocks. A from-genesis `Transfer` scan is infeasible. So:
+   - **History (F1):** read the explorer's indexed `tokentx` API, not raw `getLogs`.
+   - **Verify (F5):** recompute from the *specific disclosed tx hashes* via
+     `getTransactionReceipt` — exact, trustless, and needs no range scan.
+
+2. **USDC is Arc's NATIVE coin → its `Transfer` events are emitted by the system
+   address `0xffff…fffe` in 18 decimals**, NOT by the `0x3600…` contract and NOT in 6
+   decimals. ("Two interfaces for one token.") To get the 6-decimal ERC-20 amount,
+   divide the native value by `1e12`. EURC is an ordinary ERC-20 (emitted by
+   `0x89B5…`, 6 dp). When recomputing USDC, prefer the native (`0xffff…fffe`) event and
+   fall back to a `0x3600…` event; never double-count both. A tx with no verifiable
+   incoming transfer to the address is **excluded** from the total (not trusted).
 
 ## Open items intentionally deferred
 

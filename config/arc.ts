@@ -38,6 +38,12 @@ export const ARC = {
     multicall3From: "0x522fAf9A91c41c443c66765030741e4AaCe147D0",
     /** CALL_FROM precompile — preserves msg.sender through the memo wrapper. */
     callFrom: "0x1800000000000000000000000000000000000003",
+    /**
+     * USDC is Arc's NATIVE coin: its ERC-20 `Transfer` events are emitted by this
+     * system address in 18 decimals (not by the 0x3600 contract, not 6 decimals).
+     * Divide native USDC values by 1e12 to get the 6-decimal ERC-20 amount.
+     */
+    nativeUsdcEmitter: "0xfffffffffffffffffffffffffffffffffffffffe",
   },
 } as const;
 

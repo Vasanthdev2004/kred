@@ -10,6 +10,7 @@
  *   READ   decode the `memo` bytes of the Memo event (same tx as the Transfer).
  */
 import {
+  decodeEventLog,
   encodeFunctionData,
   getAddress,
   hexToString,
@@ -156,4 +157,28 @@ export function normalizeMemoLog(
     memo: decodeMemoData(log.args.memo),
     raw: log.args.memo,
   };
+}
+
+const MEMO_ADDR_LC = MEMO_ADDRESS.toLowerCase();
+
+/** Decode the first Payslip Memo event among a tx receipt's logs, if present. */
+export function parseMemoFromLogs(
+  logs: readonly { address: string; topics: readonly Hex[]; data: Hex }[],
+): { memo: PayslipMemo | null; memoId: Hex } | null {
+  for (const log of logs) {
+    if (log.address.toLowerCase() !== MEMO_ADDR_LC) continue;
+    try {
+      const decoded = decodeEventLog({
+        abi: MEMO_ABI,
+        data: log.data,
+        topics: log.topics as [Hex, ...Hex[]],
+      });
+      if (decoded.eventName !== "Memo") continue;
+      const args = decoded.args as unknown as { memo: Hex; memoId: Hex };
+      return { memo: decodeMemoData(args.memo), memoId: args.memoId };
+    } catch {
+      /* not a Memo log we understand */
+    }
+  }
+  return null;
 }
