@@ -12,7 +12,9 @@ export function PayPage() {
   const request = parseRequest(new URLSearchParams(sp.toString()));
 
   return (
-    <div className="mx-auto flex min-h-[85vh] max-w-md flex-col items-center justify-center px-5 py-12">
+    <div className="relative mx-auto flex min-h-[85vh] max-w-md flex-col items-center justify-center px-5 py-12">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-grid opacity-40" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 glow-brand" />
       <Link href="/" className="mb-8">
         <Logo className="text-lg" />
       </Link>

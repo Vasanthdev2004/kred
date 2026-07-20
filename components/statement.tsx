@@ -69,27 +69,61 @@ export function Statement() {
     );
   }
 
+  const nowYm = new Date().toISOString().slice(0, 7);
+  const monthsAgo = (n: number) => {
+    const d = new Date();
+    d.setUTCMonth(d.getUTCMonth() - n);
+    return d.toISOString().slice(0, 7);
+  };
+  const presets: { label: string; from: string; to: string }[] = [
+    { label: "This month", from: nowYm, to: nowYm },
+    { label: "Last 3 months", from: monthsAgo(2), to: nowYm },
+    { label: "This year", from: `${nowYm.slice(0, 4)}-01`, to: nowYm },
+    { label: "All time", from: months[0] ?? nowYm, to: nowYm },
+  ];
+
   return (
     <div className="space-y-6">
-      <Card className="flex flex-wrap items-end justify-between gap-4 p-5">
-        <div className="flex gap-3">
-          <div>
-            <Label>From</Label>
-            <Input type="month" value={rangeFrom} onChange={(e) => setFrom(e.target.value)} />
-          </div>
-          <div>
-            <Label>To</Label>
-            <Input type="month" value={rangeTo} onChange={(e) => setTo(e.target.value)} />
-          </div>
+      <Card className="space-y-4 p-5">
+        <div className="flex flex-wrap gap-1.5">
+          {presets.map((p) => {
+            const active = rangeFrom === p.from && rangeTo === p.to;
+            return (
+              <Button
+                key={p.label}
+                variant={active ? "secondary" : "ghost"}
+                size="sm"
+                className={active ? "" : "text-muted-foreground"}
+                onClick={() => {
+                  setFrom(p.from);
+                  setTo(p.to);
+                }}
+              >
+                {p.label}
+              </Button>
+            );
+          })}
         </div>
-        <Button onClick={download} disabled={!hasData || downloading} className="gap-1.5">
-          {downloading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Download className="size-4" />
-          )}
-          {downloading ? "Building PDF…" : "Export PDF"}
-        </Button>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex gap-3">
+            <div>
+              <Label>From</Label>
+              <Input type="month" value={rangeFrom} onChange={(e) => setFrom(e.target.value)} />
+            </div>
+            <div>
+              <Label>To</Label>
+              <Input type="month" value={rangeTo} onChange={(e) => setTo(e.target.value)} />
+            </div>
+          </div>
+          <Button onClick={download} disabled={!hasData || downloading} className="gap-1.5">
+            {downloading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Download className="size-4" />
+            )}
+            {downloading ? "Building PDF…" : "Export PDF"}
+          </Button>
+        </div>
       </Card>
 
       {isLoading ? (

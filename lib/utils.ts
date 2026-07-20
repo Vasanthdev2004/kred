@@ -40,3 +40,23 @@ export function formatDate(ts: number | Date): string {
     day: "numeric",
   });
 }
+
+/** "2h ago" for fresh payments (<7d), calendar date otherwise. */
+export function smartDate(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatDate(ts);
+}
+
+/** Deterministic 2-stop gradient from an address — a lightweight identicon. */
+export function addressGradient(address: string): string {
+  const a = parseInt(address.slice(2, 8) || "0", 16) % 360;
+  const b = (a + 40 + (parseInt(address.slice(-4) || "0", 16) % 80)) % 360;
+  return `linear-gradient(135deg, hsl(${a} 70% 45%), hsl(${b} 80% 55%))`;
+}

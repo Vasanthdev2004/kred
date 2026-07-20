@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ShieldCheck } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { ShareBuilder } from "@/components/share-builder";
 
 export const metadata: Metadata = {
@@ -8,12 +10,12 @@ export const metadata: Metadata = {
 export default function SharePage() {
   return (
     <div className="container max-w-4xl py-10">
-      <h1 className="text-2xl font-bold tracking-tight">Share a verify link</h1>
-      <p className="mt-1 mb-8 max-w-2xl text-sm text-muted-foreground">
-        Publish a link that proves your income for a period. The verifier&apos;s page
-        recomputes every figure from Arc on-chain data — they never have to trust you,
-        or us. Choose what extra detail to reveal.
-      </p>
+      <PageHeader
+        icon={ShieldCheck}
+        eyebrow="Prove it"
+        title="Share a verify link"
+        description="Publish a link that proves your income for a period. The verifier's page recomputes every figure from Arc on-chain data — they never have to trust you, or us. You choose what extra detail to reveal."
+      />
       <ShareBuilder />
     </div>
   );

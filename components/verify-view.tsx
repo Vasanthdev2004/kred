@@ -159,6 +159,20 @@ export function VerifyView({
         Every figure links to a transaction you can inspect yourself on{" "}
         <span className="text-foreground">Arc</span>. Payslip stores no amounts.
       </p>
+
+      <div className="mt-10 rounded-xl border border-dashed border-border p-5 text-center">
+        <p className="text-sm font-medium">Get paid in stablecoins too?</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Turn your own Arc payment history into proof like this — free, open
+          source, nothing to install.
+        </p>
+        <Link
+          href="/"
+          className="mt-3 inline-flex items-center text-sm font-medium text-primary hover:underline"
+        >
+          Create your income passport →
+        </Link>
+      </div>
     </div>
   );
 }

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useAccount } from "wagmi";
-import { ArrowRight, FileText, Link2, Send } from "lucide-react";
-import { shorten } from "@/lib/utils";
+import { ArrowRight, ExternalLink, FileText, Link2, Send } from "lucide-react";
+import { addressGradient, shorten } from "@/lib/utils";
 import { explorerAddress } from "@/config/arc";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { CopyButton } from "@/components/copy-button";
 import { NetworkGuard } from "@/components/network-guard";
 import { BalanceCards } from "@/components/balance-cards";
 import { IncomeSection } from "@/components/income";
@@ -39,26 +40,43 @@ export function Dashboard() {
     <>
       <NetworkGuard />
       <div className="container space-y-8 py-8">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-sm text-muted-foreground">
-              Connected as{" "}
-              {address ? (
-                <a
-                  href={explorerAddress(address)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-mono text-foreground hover:text-primary hover:underline"
-                >
-                  {shorten(address, 6)}
-                </a>
-              ) : (
-                "—"
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            {address && (
+              <span
+                aria-hidden
+                className="size-12 shrink-0 rounded-full shadow-soft ring-2 ring-border"
+                style={{ background: addressGradient(address) }}
+              />
+            )}
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                Your income passport
+              </h1>
+              {address && (
+                <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <span className="font-mono">{shorten(address, 6)}</span>
+                  <CopyButton value={address} label="Copy address" />
+                  <a
+                    href={explorerAddress(address)}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="View on explorer"
+                    className="rounded-md p-1 transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    <ExternalLink className="size-3.5" />
+                  </a>
+                </div>
               )}
-            </p>
+            </div>
           </div>
-          <Badge variant="outline">Arc Testnet</Badge>
+          <Badge variant="outline" className="gap-1.5">
+            <span className="relative flex size-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-3 opacity-60" />
+              <span className="relative inline-flex size-1.5 rounded-full bg-brand-3" />
+            </span>
+            Arc Testnet
+          </Badge>
         </div>
 
         <BalanceCards />
