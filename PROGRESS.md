@@ -29,7 +29,13 @@ Running log of milestones. Chain is the source of truth; DB is metadata only.
   - Verified: calldata round-trip (memo wraps transfer + carries JSON), pages render,
     tsc clean. Live signature needs a funded wallet.
 - [ ] **M4 — Income Statement + charts + PDF (F4)**
-- [ ] **M5 — Public verify + selective disclosure (F5)**
+- [x] **M5 — Public verify + selective disclosure (F5)** ✅
+  - `/verify/[id]` server-recomputes totals from chain by tx hash (never trusts DB);
+    handles Arc's native-USDC Transfer (`0xffff…fffe`, 18dp → 6dp) + ERC-20 EURC.
+  - Disclosure builder (`/share`): pick period + which fields to reveal; total +
+    backing txs always shown (that's what makes it verifiable).
+  - Verified end-to-end against a real Arc address: recomputed totals render, an
+    unverifiable tx is honestly excluded, bogus id 404s, tsc clean.
 - [ ] **M6 (stretch) — PayslipRegistry anchor (F6)**
 - [ ] **M7 — UI polish + README + deploy + demo (F7)**
 

@@ -11,18 +11,27 @@ import { NetworkGuard } from "@/components/network-guard";
 import { BalanceCards } from "@/components/balance-cards";
 import { IncomeSection } from "@/components/income";
 
+const ACTIONS = [
+  {
+    icon: Send,
+    title: "Request payment with memo",
+    body: "Send a client a link that attaches an invoice/project memo to the payment — so it arrives here already categorized.",
+    href: "/request",
+  },
+  {
+    icon: Link2,
+    title: "Share a verify link",
+    body: "Publish a page where a bank or landlord recomputes your income from Arc themselves — no trust required.",
+    href: "/share",
+  },
+];
+
 const COMING_NEXT = [
   {
     icon: FileText,
     title: "Generate income statement",
     body: "Aggregate a period into a branded PDF, each figure backed by a tx hash.",
     milestone: "M4",
-  },
-  {
-    icon: Link2,
-    title: "Share a verify link",
-    body: "Publish a selective-disclosure page a verifier can confirm against Arc.",
-    milestone: "M5",
   },
 ];
 
@@ -61,28 +70,27 @@ export function Dashboard() {
 
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Get paid
+            Get paid &amp; prove it
           </h2>
-          <Link href="/request" className="block">
-            <Card className="gradient-border hairline-top group relative overflow-hidden p-6 transition-colors hover:bg-secondary/30">
-              <div className="pointer-events-none absolute -right-10 -top-16 size-44 rounded-full bg-brand/10 blur-3xl" />
-              <div className="relative flex items-start gap-4">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
-                  <Send className="size-5" />
-                </span>
-                <div>
-                  <h3 className="flex items-center gap-1.5 font-semibold">
-                    Request payment with memo
+          <div className="grid gap-4 sm:grid-cols-2">
+            {ACTIONS.map((a) => (
+              <Link key={a.title} href={a.href} className="block">
+                <Card className="gradient-border hairline-top group relative h-full overflow-hidden p-6 transition-colors hover:bg-secondary/30">
+                  <div className="pointer-events-none absolute -right-10 -top-16 size-44 rounded-full bg-brand/10 blur-3xl" />
+                  <span className="relative flex size-11 items-center justify-center rounded-lg bg-accent text-primary">
+                    <a.icon className="size-5" />
+                  </span>
+                  <h3 className="relative mt-3 flex items-center gap-1.5 font-semibold">
+                    {a.title}
                     <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                   </h3>
-                  <p className="mt-1 max-w-lg text-sm text-muted-foreground">
-                    Send a client a link that attaches an invoice/project memo to the
-                    payment — so it arrives here already categorized.
+                  <p className="relative mt-1.5 text-sm text-muted-foreground">
+                    {a.body}
                   </p>
-                </div>
-              </div>
-            </Card>
-          </Link>
+                </Card>
+              </Link>
+            ))}
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             {COMING_NEXT.map((a) => (
