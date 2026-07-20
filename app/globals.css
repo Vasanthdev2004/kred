@@ -4,66 +4,77 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    /* Light — clean, warm-white credential paper */
+    --background: 210 40% 99%;
+    --foreground: 222 47% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 222 47% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 222 47% 10%;
 
     /* Emerald = money / verified */
-    --primary: 160 84% 39%;
+    --primary: 158 74% 38%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary-foreground: 222 40% 14%;
 
     --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted-foreground: 215 16% 42%;
 
-    --accent: 160 84% 95%;
-    --accent-foreground: 160 84% 22%;
+    --accent: 158 64% 94%;
+    --accent-foreground: 158 78% 22%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 160 84% 39%;
+    --border: 214 28% 90%;
+    --input: 214 28% 88%;
+    --ring: 158 74% 40%;
 
-    --radius: 0.75rem;
+    /* brand gradient stops (shared) */
+    --brand: 158 74% 42%;
+    --brand-2: 180 84% 42%;
+    --brand-3: 152 76% 50%;
+
+    --radius: 0.9rem;
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    /* Dark — deep, cool near-black with a green undertone */
+    --background: 210 30% 5%;
+    --foreground: 195 20% 96%;
 
-    --card: 222 44% 9%;
-    --card-foreground: 210 40% 98%;
+    --card: 208 24% 8%;
+    --card-foreground: 195 20% 96%;
 
-    --popover: 222 44% 9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 208 26% 9%;
+    --popover-foreground: 195 20% 96%;
 
-    --primary: 158 74% 46%;
-    --primary-foreground: 222 47% 6%;
+    --primary: 156 72% 48%;
+    --primary-foreground: 205 40% 6%;
 
-    --secondary: 217 33% 15%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 210 20% 14%;
+    --secondary-foreground: 195 20% 96%;
 
-    --muted: 217 33% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 210 18% 13%;
+    --muted-foreground: 205 14% 62%;
 
-    --accent: 158 60% 16%;
-    --accent-foreground: 158 74% 70%;
+    --accent: 158 50% 14%;
+    --accent-foreground: 156 72% 70%;
 
-    --destructive: 0 63% 45%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 47%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 20%;
-    --ring: 158 74% 46%;
+    --border: 208 18% 16%;
+    --input: 208 18% 20%;
+    --ring: 156 72% 48%;
+
+    --brand: 156 72% 48%;
+    --brand-2: 184 88% 52%;
+    --brand-3: 150 80% 56%;
   }
 }
 
@@ -71,24 +82,119 @@
   * {
     @apply border-border;
   }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.25);
+  }
+  /* Nicer numbers everywhere they matter */
+  .nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
   }
 }
 
 @layer utilities {
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
+  .font-mono {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
   }
-  /* subtle grid backdrop for hero surfaces */
-  .bg-grid {
+
+  /* Emerald→cyan gradient text */
+  .text-gradient {
     background-image: linear-gradient(
+      100deg,
+      hsl(var(--brand-3)),
+      hsl(var(--brand-2))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* 1px top highlight to fake light hitting a raised surface */
+  .hairline-top::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(0 0% 100% / 0.14) 20%,
+      hsl(0 0% 100% / 0.14) 80%,
+      transparent
+    );
+  }
+
+  /* Gradient border via mask (crisp 1px, theme-aware) */
+  .gradient-border {
+    position: relative;
+  }
+  .gradient-border::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      145deg,
+      hsl(var(--brand) / 0.55),
+      hsl(var(--brand-2) / 0.15) 45%,
+      transparent 70%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Ambient radial glows for hero surfaces */
+  .glow-brand {
+    background:
+      radial-gradient(
+        60% 50% at 50% 0%,
+        hsl(var(--brand) / 0.16),
+        transparent 70%
+      );
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(
         to right,
-        hsl(var(--border) / 0.5) 1px,
+        hsl(var(--border) / 0.6) 1px,
         transparent 1px
       ),
-      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
-    background-size: 44px 44px;
+      linear-gradient(to bottom, hsl(var(--border) / 0.6) 1px, transparent 1px);
+    background-size: 48px 48px;
+    -webkit-mask-image: radial-gradient(
+      ellipse 70% 60% at 50% 0%,
+      #000 40%,
+      transparent 100%
+    );
+    mask-image: radial-gradient(
+      ellipse 70% 60% at 50% 0%,
+      #000 40%,
+      transparent 100%
+    );
+  }
+
+  /* Subtle film grain (very low opacity) */
+  .grain::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 }
