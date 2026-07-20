@@ -43,7 +43,13 @@ Running log of milestones. Chain is the source of truth; DB is metadata only.
   - Verified end-to-end against a real Arc address: recomputed totals render, an
     unverifiable tx is honestly excluded, bogus id 404s, tsc clean.
 - [ ] **M6 (stretch) — PayslipRegistry anchor (F6)**
-- [ ] **M7 — UI polish + README + deploy + demo (F7)**
+- [~] **M7 — deploy ✅ (Railway) · polish/demo remaining**
+  - Live: https://payslip-production-409a.up.railway.app
+  - Railway project `payslip` + managed Postgres (persistent volume); Prisma on
+    postgresql; `migrate deploy` pre-deploy; local dev shares the same DB.
+  - Verified live: all routes 200 + a real disclosure→verify recompute round-trip
+    against Arc from the production server.
+  - Remaining: live wallet demo run, WC project id, demo recording, final polish.
 
 ## Adversarial review pass (pre-deploy)
 

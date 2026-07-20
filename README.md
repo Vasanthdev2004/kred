@@ -39,6 +39,11 @@ before this status was claimed — see `PROGRESS.md`.
 Next.js 14 (App Router) · TypeScript · Tailwind · wagmi + viem · RainbowKit ·
 Recharts · @react-pdf/renderer · Prisma (SQLite local / Postgres deployed).
 
+## Live
+
+**https://payslip-production-409a.up.railway.app** — deployed on Railway (Next.js
+server + managed Postgres; the metadata DB stores only tags & disclosure prefs).
+
 ## Getting started
 
 ```bash
