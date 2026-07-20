@@ -8,6 +8,9 @@ import { arcTestnet } from "@/config/arc";
  */
 export const wagmiConfig = getDefaultConfig({
   appName: "Kred",
+  appDescription: "Verifiable proof-of-income on Arc",
+  appUrl: "https://kred.today",
+  appIcon: "https://kred.today/icon.svg",
   projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || "KRED_DEMO",
   chains: [arcTestnet],
   transports: {

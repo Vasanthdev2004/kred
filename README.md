@@ -41,7 +41,7 @@ Recharts · @react-pdf/renderer · Prisma (SQLite local / Postgres deployed).
 
 ## Live
 
-**https://kred-production-5475.up.railway.app** — deployed on Railway (Next.js
+**https://kred.today** — deployed on Railway (Next.js
 server + managed Postgres; the metadata DB stores only tags & disclosure prefs).
 
 ## Getting started
