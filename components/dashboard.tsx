@@ -19,19 +19,16 @@ const ACTIONS = [
     href: "/request",
   },
   {
+    icon: FileText,
+    title: "Generate income statement",
+    body: "Aggregate a period into totals + a monthly chart, and export a branded PDF backed by tx hashes.",
+    href: "/statement",
+  },
+  {
     icon: Link2,
     title: "Share a verify link",
     body: "Publish a page where a bank or landlord recomputes your income from Arc themselves — no trust required.",
     href: "/share",
-  },
-];
-
-const COMING_NEXT = [
-  {
-    icon: FileText,
-    title: "Generate income statement",
-    body: "Aggregate a period into a branded PDF, each figure backed by a tx hash.",
-    milestone: "M4",
   },
 ];
 
@@ -72,7 +69,7 @@ export function Dashboard() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Get paid &amp; prove it
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {ACTIONS.map((a) => (
               <Link key={a.title} href={a.href} className="block">
                 <Card className="gradient-border hairline-top group relative h-full overflow-hidden p-6 transition-colors hover:bg-secondary/30">
@@ -89,19 +86,6 @@ export function Dashboard() {
                   </p>
                 </Card>
               </Link>
-            ))}
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {COMING_NEXT.map((a) => (
-              <Card key={a.title} className="relative p-5">
-                <Badge variant="muted" className="absolute right-3 top-3">
-                  {a.milestone}
-                </Badge>
-                <a.icon className="size-6 text-primary" />
-                <h3 className="mt-3 font-semibold">{a.title}</h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">{a.body}</p>
-              </Card>
             ))}
           </div>
         </section>

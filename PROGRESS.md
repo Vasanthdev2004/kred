@@ -28,7 +28,13 @@ Running log of milestones. Chain is the source of truth; DB is metadata only.
   - Request builder (`/request`) with live payer-card preview + copyable link.
   - Verified: calldata round-trip (memo wraps transfer + carries JSON), pages render,
     tsc clean. Live signature needs a funded wallet.
-- [ ] **M4 — Income Statement + charts + PDF (F4)**
+- [x] **M4 — Income Statement + charts + PDF (F4)** ✅
+  - Pure aggregation (totals as bigint = exact on-chain sums; by-client/category;
+    monthly trend). Recharts trend chart with dataviz-validated CVD-safe colors
+    (green USDC / blue EURC, both light+dark).
+  - Branded PDF via @react-pdf/renderer (dynamic-imported) with full tx hashes per
+    row for independent verification. Verified: render + PDF smoke test + tsc clean.
+  - `/statement` page + dashboard action.
 - [x] **M5 — Public verify + selective disclosure (F5)** ✅
   - `/verify/[id]` server-recomputes totals from chain by tx hash (never trusts DB);
     handles Arc's native-USDC Transfer (`0xffff…fffe`, 18dp → 6dp) + ERC-20 EURC.
