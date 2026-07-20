@@ -1,14 +1,19 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   ArrowDownLeft,
   ExternalLink,
   Inbox,
+  Pencil,
+  Plus,
   RefreshCw,
   TriangleAlert,
 } from "lucide-react";
 import { useIncome } from "@/hooks/use-income";
+import { useTags, type TagRecord } from "@/hooks/use-tags";
 import { type Payment } from "@/lib/indexer";
+import { type PayslipMemo } from "@/lib/memo";
 import { type TokenSymbol } from "@/lib/tokens";
 import { ARC, explorerAddress, explorerTx } from "@/config/arc";
 import { cn, formatAmount, formatDate, shorten } from "@/lib/utils";
@@ -16,19 +21,34 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TokenBadge } from "@/components/token-badge";
+import { TagDialog, type TagDraft } from "@/components/tag-dialog";
 
-interface Total {
-  symbol: TokenSymbol;
-  decimals: number;
-  amount: bigint;
-  count: number;
+type MemoSource = "chain" | "tag" | "none";
+type Row = Payment & {
+  displayMemo: PayslipMemo | null;
+  memoSource: MemoSource;
+  tag?: TagRecord;
+};
+
+function tagToMemo(t: TagRecord): PayslipMemo {
+  return {
+    client: t.client ?? undefined,
+    project: t.project ?? undefined,
+    category: t.category ?? undefined,
+    invoice: t.invoice ?? undefined,
+    period: t.period ?? undefined,
+    note: t.note ?? undefined,
+  };
 }
 
-function summarize(payments: Payment[]) {
-  const totals = new Map<TokenSymbol, Total>();
+function summarize(rows: Row[]) {
+  const totals = new Map<
+    TokenSymbol,
+    { symbol: TokenSymbol; decimals: number; amount: bigint; count: number }
+  >();
   let tagged = 0;
-  for (const p of payments) {
-    if (p.memo) tagged++;
+  for (const p of rows) {
+    if (p.displayMemo) tagged++;
     const t = totals.get(p.tokenSymbol) ?? {
       symbol: p.tokenSymbol,
       decimals: p.tokenDecimals,
@@ -41,13 +61,44 @@ function summarize(payments: Payment[]) {
   }
   return {
     totals: [...totals.values()],
-    count: payments.length,
-    taggedPct: payments.length ? Math.round((tagged / payments.length) * 100) : 0,
+    count: rows.length,
+    taggedPct: rows.length ? Math.round((tagged / rows.length) * 100) : 0,
   };
 }
 
 export function IncomeSection() {
   const { data: payments, isLoading, isError, isFetching, refetch } = useIncome();
+  const { data: tags } = useTags();
+  const [dialog, setDialog] = useState<{ txHash: string; initial?: TagDraft } | null>(
+    null,
+  );
+
+  const rows = useMemo<Row[]>(() => {
+    const tagMap = new Map<string, TagRecord>();
+    for (const t of tags ?? []) tagMap.set(t.txHash.toLowerCase(), t);
+    return (payments ?? []).map((p) => {
+      const tag = tagMap.get(p.txHash.toLowerCase());
+      const displayMemo = p.memo ?? (tag ? tagToMemo(tag) : null);
+      const memoSource: MemoSource = p.memo ? "chain" : tag ? "tag" : "none";
+      return { ...p, displayMemo, memoSource, tag };
+    });
+  }, [payments, tags]);
+
+  function openTag(row: Row) {
+    setDialog({
+      txHash: row.txHash,
+      initial: row.tag
+        ? {
+            client: row.tag.client,
+            project: row.tag.project,
+            category: row.tag.category,
+            invoice: row.tag.invoice,
+            period: row.tag.period,
+            note: row.tag.note,
+          }
+        : undefined,
+    });
+  }
 
   return (
     <section className="space-y-5">
@@ -71,29 +122,37 @@ export function IncomeSection() {
         <IncomeSkeleton />
       ) : isError ? (
         <IncomeError onRetry={() => refetch()} />
-      ) : !payments || payments.length === 0 ? (
+      ) : rows.length === 0 ? (
         <IncomeEmpty />
       ) : (
         <>
-          <IncomeSummary payments={payments} />
-          <IncomeTable payments={payments} />
+          <IncomeSummary rows={rows} />
+          <IncomeTable rows={rows} onTag={openTag} />
         </>
+      )}
+
+      {dialog && (
+        <TagDialog
+          key={dialog.txHash}
+          open
+          onClose={() => setDialog(null)}
+          txHash={dialog.txHash}
+          initial={dialog.initial}
+        />
       )}
     </section>
   );
 }
 
-function IncomeSummary({ payments }: { payments: Payment[] }) {
-  const { totals, count, taggedPct } = summarize(payments);
+function IncomeSummary({ rows }: { rows: Row[] }) {
+  const { totals, count, taggedPct } = summarize(rows);
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {totals.map((t) => (
         <Card key={t.symbol} className="hairline-top relative overflow-hidden p-5">
           <div className="flex items-center gap-2">
             <TokenBadge symbol={t.symbol} size="sm" />
-            <span className="text-sm text-muted-foreground">
-              Total {t.symbol}
-            </span>
+            <span className="text-sm text-muted-foreground">Total {t.symbol}</span>
           </div>
           <div className="mt-3 font-mono text-2xl font-semibold nums">
             {formatAmount(t.amount, t.decimals)}
@@ -109,13 +168,9 @@ function IncomeSummary({ payments }: { payments: Payment[] }) {
         <div className="mt-1 text-xs text-muted-foreground">incoming, on-chain</div>
       </Card>
       <Card className="p-5">
-        <div className="text-sm text-muted-foreground">Memo-tagged</div>
-        <div className="mt-3 font-mono text-2xl font-semibold nums">
-          {taggedPct}%
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          auto-categorized
-        </div>
+        <div className="text-sm text-muted-foreground">Categorized</div>
+        <div className="mt-3 font-mono text-2xl font-semibold nums">{taggedPct}%</div>
+        <div className="mt-1 text-xs text-muted-foreground">memo + manual tags</div>
       </Card>
     </div>
   );
@@ -123,9 +178,9 @@ function IncomeSummary({ payments }: { payments: Payment[] }) {
 
 const MAX_ROWS = 100;
 
-function IncomeTable({ payments }: { payments: Payment[] }) {
-  const rows = payments.slice(0, MAX_ROWS);
-  const hidden = payments.length - rows.length;
+function IncomeTable({ rows, onTag }: { rows: Row[]; onTag: (r: Row) => void }) {
+  const shown = rows.slice(0, MAX_ROWS);
+  const hidden = rows.length - shown.length;
   return (
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
@@ -134,13 +189,13 @@ function IncomeTable({ payments }: { payments: Payment[] }) {
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="px-5 py-3 font-medium">Date</th>
               <th className="px-5 py-3 font-medium">From</th>
-              <th className="px-5 py-3 font-medium">Memo</th>
+              <th className="px-5 py-3 font-medium">Memo / tag</th>
               <th className="px-5 py-3 text-right font-medium">Amount</th>
               <th className="px-5 py-3 font-medium">Tx</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((p) => (
+            {shown.map((p) => (
               <tr
                 key={p.txHash}
                 className="border-b border-border/60 last:border-0 hover:bg-secondary/40"
@@ -160,7 +215,7 @@ function IncomeTable({ payments }: { payments: Payment[] }) {
                   </a>
                 </td>
                 <td className="px-5 py-3.5">
-                  <MemoCell payment={p} />
+                  <MemoCell row={p} onTag={onTag} />
                 </td>
                 <td className="whitespace-nowrap px-5 py-3.5 text-right">
                   <span className="inline-flex items-center gap-1.5 font-mono font-medium nums">
@@ -194,17 +249,23 @@ function IncomeTable({ payments }: { payments: Payment[] }) {
   );
 }
 
-function MemoCell({ payment }: { payment: Payment }) {
-  const m = payment.memo;
+function MemoCell({ row, onTag }: { row: Row; onTag: (r: Row) => void }) {
+  const m = row.displayMemo;
   if (!m) {
     return (
-      <Badge variant="muted" className="font-normal text-muted-foreground">
-        untagged
-      </Badge>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 gap-1 text-xs text-muted-foreground"
+        onClick={() => onTag(row)}
+      >
+        <Plus className="size-3" />
+        Tag
+      </Button>
     );
   }
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="group flex flex-wrap items-center gap-1.5">
       {m.client && <span className="font-medium">{m.client}</span>}
       {m.project && (
         <span className="text-xs text-muted-foreground">· {m.project}</span>
@@ -218,6 +279,19 @@ function MemoCell({ payment }: { payment: Payment }) {
         <span className="font-mono text-[11px] text-muted-foreground">
           {m.invoice}
         </span>
+      )}
+      {row.memoSource === "chain" ? (
+        <Badge variant="muted" className="font-normal text-[10px] uppercase">
+          on-chain
+        </Badge>
+      ) : (
+        <button
+          onClick={() => onTag(row)}
+          aria-label="Edit tag"
+          className="text-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
+        >
+          <Pencil className="size-3" />
+        </button>
       )}
     </div>
   );

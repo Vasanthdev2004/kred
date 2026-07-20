@@ -16,7 +16,12 @@ Running log of milestones. Chain is the source of truth; DB is metadata only.
   - Server route `/api/income` → `useIncome` hook → summary tiles + memo-aware table.
   - Verified against a real Arc recipient (6k transfers parsed; totals from all,
     table capped to 100 rows). Chain stays the source of truth.
-- [ ] **M2 — Memo adapter decode + tagging (F2)**
+- [x] **M2 — Memo adapter decode + tagging (F2)** ✅
+  - SQLite migration (Tag/Disclosure) + `/api/tags` CRUD (upsert keyed by
+    address+txHash), `useTags`/`useSetTag` hooks.
+  - Feed merges manual tags with on-chain memos (effective memo); untagged rows get
+    a Tag action + dialog; categorized % counts both. DB is metadata-only.
+  - Verified: tags CRUD round-trip + tsc clean.
 - [ ] **M3 — Pay-with-memo request/payer flow (F3)** ← Memo showcase
 - [ ] **M4 — Income Statement + charts + PDF (F4)**
 - [ ] **M5 — Public verify + selective disclosure (F5)**
