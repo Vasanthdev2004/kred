@@ -20,6 +20,13 @@ export const arcTestnet = defineChain({
   blockExplorers: {
     default: { name: "Arcscan", url: "https://testnet.arcscan.app" },
   },
+  contracts: {
+    // Standard Multicall3, verified live on Arc (getBlockNumber responds). Declaring
+    // it lets viem/wagmi batch multiple reads into ONE eth_call — essential because
+    // the public Arc RPC rate-limits rapid separate calls (the 2nd silently -32011s,
+    // which is why the wallet EURC balance was reading 0).
+    multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" },
+  },
   testnet: true,
 });
 

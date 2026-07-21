@@ -23,7 +23,13 @@ export function BalanceCards() {
       functionName: "balanceOf" as const,
       args: address ? [address] : undefined,
     })),
-    query: { enabled: Boolean(address) },
+    query: {
+      enabled: Boolean(address),
+      // Public Arc RPC can still transiently rate-limit; back off and retry so a
+      // single blip doesn't leave a balance stuck at 0.
+      retry: 3,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+    },
   });
 
   return (
