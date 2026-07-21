@@ -1,10 +1,11 @@
 "use client";
 
+import { keepPreviousData } from "@tanstack/react-query";
 import { useAccount, useReadContracts } from "wagmi";
 import { ExternalLink } from "lucide-react";
 import { TOKENS } from "@/lib/tokens";
 import { ERC20_ABI } from "@/lib/abi";
-import { ARC } from "@/config/arc";
+import { ARC, ARC_TESTNET_ID } from "@/config/arc";
 import { usePreviewAddress } from "@/lib/preview";
 import { formatAmount } from "@/lib/utils";
 import { TokenLogo } from "@/components/token-logo";
@@ -15,20 +16,26 @@ export function BalanceCards() {
   const preview = usePreviewAddress();
   const address = wagmiAddress ?? preview;
 
-  const { data } = useReadContracts({
+  const { data, isLoading } = useReadContracts({
     allowFailure: true,
     contracts: TOKENS.map((t) => ({
       address: t.address,
       abi: ERC20_ABI,
       functionName: "balanceOf" as const,
       args: address ? [address] : undefined,
+      // Pin to Arc: without this, reads follow the wallet's CURRENT network, so a
+      // wallet parked on another chain made both balances "fail" (shown as 0).
+      chainId: ARC_TESTNET_ID,
     })),
     query: {
       enabled: Boolean(address),
-      // Public Arc RPC can still transiently rate-limit; back off and retry so a
-      // single blip doesn't leave a balance stuck at 0.
+      // Public Arc RPC can transiently rate-limit; back off and retry, keep the
+      // last good balances while refetching, and refresh on an interval so the
+      // strip self-heals after payments / network blips.
       retry: 3,
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+      refetchInterval: 30_000,
+      placeholderData: keepPreviousData,
     },
   });
 
@@ -39,13 +46,17 @@ export function BalanceCards() {
       </span>
       {TOKENS.map((t, i) => {
         const r = data?.[i];
-        const value =
-          r && r.status === "success" ? (r.result as bigint) : 0n;
+        const ok = r?.status === "success";
         return (
           <span key={t.symbol} className="inline-flex items-center gap-1.5">
             <TokenLogo symbol={t.symbol} className="size-4" />
             <span className="font-mono font-medium tabular-nums">
-              {formatAmount(value, t.decimals)}
+              {/* Never render a failed read as 0 — "0" is a claim, "—" is honest. */}
+              {ok
+                ? formatAmount(r.result as bigint, t.decimals)
+                : isLoading
+                  ? "…"
+                  : "—"}
             </span>
             <span className="text-muted-foreground">{t.symbol}</span>
           </span>
