@@ -8,6 +8,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Tag,
   TriangleAlert,
 } from "lucide-react";
 import { useIncome } from "@/hooks/use-income";
@@ -173,6 +174,24 @@ function sparkline(rows: Row[], symbol: TokenSymbol): number[] {
   return keys.map((k) => buckets.get(k)!);
 }
 
+const GLASS =
+  "group relative overflow-hidden rounded-xl border border-border/70 bg-card/60 p-5 shadow-md backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-border hover:shadow-xl";
+
+/** Thin light seam along the top edge — the glass "sheen". */
+function CardSheen() {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
+    />
+  );
+}
+
+const TOKEN_GLOW: Record<TokenSymbol, string> = {
+  USDC: "rgba(39,117,202,0.45)",
+  EURC: "rgba(55,195,155,0.45)",
+};
+
 function IncomeSummary({ rows }: { rows: Row[] }) {
   const { totals, count, taggedPct } = summarize(rows);
   return (
@@ -181,22 +200,33 @@ function IncomeSummary({ rows }: { rows: Row[] }) {
         const spark = sparkline(rows, t.symbol);
         const max = Math.max(...spark, 1);
         return (
-          <Card key={t.symbol} className="hairline-top relative overflow-hidden p-5">
-            <div className="flex items-center gap-2">
-              <TokenBadge symbol={t.symbol} size="sm" />
+          <div key={t.symbol} className={GLASS}>
+            <CardSheen />
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -right-6 -top-8 size-28 rounded-full opacity-50 blur-2xl transition-opacity duration-300 group-hover:opacity-90"
+              style={{
+                background: `radial-gradient(circle, ${TOKEN_GLOW[t.symbol]} 0%, transparent 70%)`,
+              }}
+            />
+            <div className="relative flex items-center gap-2">
+              <TokenBadge
+                symbol={t.symbol}
+                className="size-6 transition-transform duration-300 group-hover:scale-110"
+              />
               <span className="text-sm text-muted-foreground">
                 Total {t.symbol}
               </span>
             </div>
-            <div className="mt-3 font-mono text-2xl font-semibold nums">
+            <div className="relative mt-3 font-mono text-2xl font-semibold nums">
               {formatAmount(t.amount, t.decimals)}
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">
+            <div className="relative mt-1 text-xs text-muted-foreground">
               across {t.count} payment{t.count === 1 ? "" : "s"}
             </div>
             <div
               aria-hidden
-              className="absolute bottom-0 right-4 flex h-8 items-end gap-[3px] opacity-60"
+              className="absolute bottom-0 right-4 flex h-8 items-end gap-[3px] opacity-50 transition-opacity duration-300 group-hover:opacity-90"
             >
               {spark.map((v, i) => (
                 <span
@@ -206,19 +236,41 @@ function IncomeSummary({ rows }: { rows: Row[] }) {
                 />
               ))}
             </div>
-          </Card>
+          </div>
         );
       })}
-      <Card className="p-5">
-        <div className="text-sm text-muted-foreground">Payments</div>
-        <div className="mt-3 font-mono text-2xl font-semibold nums">{count}</div>
-        <div className="mt-1 text-xs text-muted-foreground">incoming, on-chain</div>
-      </Card>
-      <Card className="p-5">
-        <div className="text-sm text-muted-foreground">Categorized</div>
-        <div className="mt-3 font-mono text-2xl font-semibold nums">{taggedPct}%</div>
-        <div className="mt-1 text-xs text-muted-foreground">memo + manual tags</div>
-      </Card>
+
+      <div className={GLASS}>
+        <CardSheen />
+        <div className="relative flex items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-full bg-accent text-primary">
+            <ArrowDownLeft className="size-3.5" />
+          </span>
+          <span className="text-sm text-muted-foreground">Payments</span>
+        </div>
+        <div className="relative mt-3 font-mono text-2xl font-semibold nums">
+          {count}
+        </div>
+        <div className="relative mt-1 text-xs text-muted-foreground">
+          incoming, on-chain
+        </div>
+      </div>
+
+      <div className={GLASS}>
+        <CardSheen />
+        <div className="relative flex items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-full bg-accent text-primary">
+            <Tag className="size-3.5" />
+          </span>
+          <span className="text-sm text-muted-foreground">Categorized</span>
+        </div>
+        <div className="relative mt-3 font-mono text-2xl font-semibold nums">
+          {taggedPct}%
+        </div>
+        <div className="relative mt-1 text-xs text-muted-foreground">
+          memo + manual tags
+        </div>
+      </div>
     </div>
   );
 }
