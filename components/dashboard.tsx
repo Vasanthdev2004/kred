@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useAccount } from "wagmi";
 import { usePreviewAddress } from "@/lib/preview";
 import { ArrowRight, ExternalLink, FileText, Link2, Send } from "lucide-react";
-import { addressGradient, shorten } from "@/lib/utils";
+import { shorten } from "@/lib/utils";
 import { explorerAddress } from "@/config/arc";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { WalletAvatar } from "@/components/wallet-avatar";
 import { CopyButton } from "@/components/copy-button";
 import { NetworkGuard } from "@/components/network-guard";
 import { BalanceCards } from "@/components/balance-cards";
@@ -46,10 +47,10 @@ export function Dashboard() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             {address && (
-              <span
-                aria-hidden
-                className="size-12 shrink-0 rounded-full shadow-soft ring-2 ring-border"
-                style={{ background: addressGradient(address) }}
+              <WalletAvatar
+                address={address}
+                size={48}
+                className="shadow-soft ring-2 ring-border"
               />
             )}
             <div>

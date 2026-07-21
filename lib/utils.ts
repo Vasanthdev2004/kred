@@ -53,11 +53,3 @@ export function smartDate(ts: number): string {
   if (days < 7) return `${days}d ago`;
   return formatDate(ts);
 }
-
-/** Deterministic identicon gradient from an address, kept in the emerald→cyan
- *  brand family (hue 150–214) so avatars never clash with the theme. */
-export function addressGradient(address: string): string {
-  const a = 150 + (parseInt(address.slice(2, 8) || "0", 16) % 60);
-  const b = a + 24 + (parseInt(address.slice(-4) || "0", 16) % 20);
-  return `linear-gradient(135deg, hsl(${a} 62% 42%), hsl(${b} 78% 55%))`;
-}
