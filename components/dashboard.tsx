@@ -13,6 +13,11 @@ import { CopyButton } from "@/components/copy-button";
 import { NetworkGuard } from "@/components/network-guard";
 import { BalanceCards } from "@/components/balance-cards";
 import { IncomeSection } from "@/components/income";
+import { IncomeHeatmap } from "@/components/income-heatmap";
+import { IncomeHealth } from "@/components/income-health";
+import { RecurringClients } from "@/components/recurring-clients";
+import { useIncome } from "@/hooks/use-income";
+import { useTags } from "@/hooks/use-tags";
 
 const ACTIONS = [
   {
@@ -39,6 +44,10 @@ export function Dashboard() {
   const { address: wagmiAddress } = useAccount();
   const preview = usePreviewAddress();
   const address = wagmiAddress ?? preview;
+  // Shared with IncomeSection via react-query's cache, so the track-record
+  // panels below cost no extra reads.
+  const { data: income, isLoading, isError } = useIncome();
+  const { data: tags } = useTags();
 
   return (
     <>
@@ -86,6 +95,23 @@ export function Dashboard() {
         <BalanceCards />
 
         <IncomeSection />
+
+        {/* The track record: not just what arrived, but how steady it is. */}
+        <IncomeHeatmap
+          payments={income?.payments}
+          isLoading={isLoading}
+          isError={isError}
+        />
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <IncomeHealth
+            payments={income?.payments}
+            tags={tags}
+            isLoading={isLoading}
+            isError={isError}
+          />
+          <RecurringClients />
+        </div>
 
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
