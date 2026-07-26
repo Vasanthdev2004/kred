@@ -3,6 +3,7 @@ import { isAddress } from "viem";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { disclosureDigest } from "@/lib/registry";
+import { MAX_DISCLOSURE_TX } from "@/lib/verify";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const input = z.object({
   txHashes: z
     .array(z.string().regex(/^0x[0-9a-fA-F]{64}$/))
     .min(1, "no transactions to disclose")
-    .max(500), // bounds per-verify RPC fan-out (see /verify caching)
+    .max(MAX_DISCLOSURE_TX), // bounds per-verify RPC fan-out (see /verify caching)
 });
 
 /** POST /api/disclosures → create a selective-disclosure record; returns its id.

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TokenBadge } from "@/components/token-badge";
 import { AnchorButton } from "@/components/anchor-button";
+import { ShareOnX } from "@/components/share-on-x";
 
 const ym = (ts: number) => new Date(ts).toISOString().slice(0, 7);
 
@@ -269,6 +270,11 @@ function ShareResult({
           {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
           {copied ? "Copied" : "Copy"}
         </Button>
+        <ShareOnX
+          url={url}
+          text="Proof of my income, recomputed live from Arc. No trust in me required."
+          className="shrink-0"
+        />
       </div>
       <AnchorButton disclosureId={disclosureId} digest={digest} owner={owner} />
       <div className="mt-4 flex items-center justify-center gap-4 text-sm">

@@ -68,7 +68,7 @@ export function SiteFooter() {
           <Logo className="text-base" />
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
             Verifiable proof-of-income for onchain freelancers. Every figure backed
-            by an Arc transaction — never our word.
+            by an Arc transaction, never our word.
           </p>
           <a
             href="https://github.com/Vasanthdev2004/kred"

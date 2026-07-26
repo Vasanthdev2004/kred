@@ -24,6 +24,12 @@ const USDC_LC = ARC.contracts.usdc.toLowerCase();
 const EURC_LC = ARC.contracts.eurc.toLowerCase();
 const NATIVE_TO_ERC20 = 1_000_000_000_000n; // 18dp -> 6dp
 
+/** Hard cap on how many txs one disclosure may carry. Enforced when the disclosure is
+ *  created (app/api/disclosures) and again inside recompute() itself — the single entry
+ *  point every surface goes through (/verify page + its OG share card) — so no caller
+ *  can fan out to unbounded RPC on a hand-written record by forgetting to check. */
+export const MAX_DISCLOSURE_TX = 500;
+
 export interface VerifiedTx {
   txHash: Hex;
   verified: boolean;
@@ -48,7 +54,13 @@ export interface RecomputeResult {
   txs: VerifiedTx[];
   totals: RecomputeTotal[];
   verifiedCount: number;
+  /** disclosed txs we asked the chain about and could not verify (bad read, reverted,
+   *  or not an incoming transfer to `address`). */
   failedCount: number;
+  /** disclosed txs past MAX_DISCLOSURE_TX that we never attempted. Kept separate from
+   *  failedCount: the chain didn't reject these, we declined to look. Either one makes
+   *  the total UNDERSTATED, so both are fail-closed gates on the OG card. */
+  overCap: number;
 }
 
 async function mapLimit<T, R>(
@@ -75,7 +87,12 @@ export async function recompute(
   txHashes: Hex[],
 ): Promise<RecomputeResult> {
   const me = address.toLowerCase();
-  const unique = [...new Set(txHashes.map((h) => h.toLowerCase() as Hex))];
+  const all = [...new Set(txHashes.map((h) => h.toLowerCase() as Hex))];
+  // Bound the RPC fan-out here rather than at each call site. Anything past the cap is
+  // reported as `overCap` instead of silently dropped, so a truncated read can never
+  // surface as a complete total.
+  const unique = all.slice(0, MAX_DISCLOSURE_TX);
+  const overCap = all.length - unique.length;
 
   // 1. fetch receipts + derive incoming USDC/EURC per tx.
   //    USDC is native → its Transfer comes from 0xff..fe in 18dp; EURC is a normal
@@ -198,5 +215,6 @@ export async function recompute(
     totals: [...totals.values()],
     verifiedCount,
     failedCount,
+    overCap,
   };
 }

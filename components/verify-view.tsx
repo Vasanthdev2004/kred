@@ -23,11 +23,15 @@ export function VerifyView({
   fields,
   result,
   anchor,
+  droppedTx = 0,
 }: {
   disclosure: DisclosureMeta;
   fields: Set<string>;
   result: RecomputeResult;
   anchor?: AnchorProof | null;
+  /** stored hashes the read-side filter rejected (lib/disclosure.ts) — never verified
+   *  and never counted, so the total below is understated by that many payments. */
+  droppedTx?: number;
 }) {
   const clients = new Set(
     result.txs.map((t) => t.memo?.client).filter(Boolean),
@@ -70,7 +74,7 @@ export function VerifyView({
 
           {fields.has("period") && (
             <div className="relative mt-6 text-[11px] uppercase tracking-wider text-muted-foreground">
-              Verified income · {disclosure.label || periodLabel}
+              Verified income · {periodLabel}
             </div>
           )}
 
@@ -169,10 +173,17 @@ export function VerifyView({
 
           <div className="relative mt-5 flex items-center gap-2 border-t border-border pt-4">
             <Logo className="text-xs opacity-70" />
+            {/* Each caveat names a different reason a tx is missing from the total, so
+                they stay separate: the chain rejected it, we never asked, or the stored
+                hash was malformed. */}
             <span className="ml-auto text-right text-[11px] text-muted-foreground">
               Recomputed from Arc, not a database.
               {result.failedCount > 0 &&
                 ` ${result.failedCount} disclosed tx omitted (unverifiable).`}
+              {result.overCap > 0 &&
+                ` ${result.overCap} beyond the disclosure cap not verified.`}
+              {droppedTx > 0 &&
+                ` ${droppedTx} disclosed tx unreadable (malformed hash).`}
             </span>
           </div>
         </GlassCard>
