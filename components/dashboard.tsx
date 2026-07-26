@@ -103,15 +103,16 @@ export function Dashboard() {
           isError={isError}
         />
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <IncomeHealth
-            payments={income?.payments}
-            tags={tags}
-            isLoading={isLoading}
-            isError={isError}
-          />
-          <RecurringClients />
-        </div>
+        {/* Both run full width: five figures per token need the room, and
+            squeezing them into a half column overlaps the larger amounts. */}
+        <IncomeHealth
+          payments={income?.payments}
+          tags={tags}
+          isLoading={isLoading}
+          isError={isError}
+        />
+
+        <RecurringClients />
 
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">

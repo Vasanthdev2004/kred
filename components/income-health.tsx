@@ -217,11 +217,17 @@ function Stat({
       <div className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1.5 flex min-h-7 items-baseline">
+      <div className="mt-1.5 flex min-h-7 min-w-0 items-baseline">
         {value === null ? (
-          <span className="text-xs text-muted-foreground/80">Not enough history</span>
+          <span className="text-xs leading-tight text-muted-foreground/80">
+            Not enough history
+          </span>
         ) : (
-          <span className="font-mono text-xl font-semibold nums">{value}</span>
+          // truncate + min-w-0: a six-figure total must clip inside its own
+          // cell rather than overrun the next stat.
+          <span className="min-w-0 truncate font-mono text-lg font-semibold nums">
+            {value}
+          </span>
         )}
       </div>
       {value !== null && hint && (
