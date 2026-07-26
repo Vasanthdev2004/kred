@@ -98,6 +98,10 @@ export function AnchorButton({
           className="w-full gap-1.5"
           onClick={() =>
             writeContract({
+              // Pinned: `wrongNetwork` is only a render-time check, so a wallet-side
+              // network switch between it and the click would otherwise anchor on
+              // whatever chain the wallet drifted to.
+              chainId: ARC_TESTNET_ID,
               address: registry,
               abi: KRED_REGISTRY_ABI,
               functionName: "anchor",

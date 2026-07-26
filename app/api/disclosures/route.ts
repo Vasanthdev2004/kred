@@ -44,7 +44,11 @@ export async function POST(req: NextRequest) {
   });
   // Server-computed digest the owner anchors on-chain (F6). Computed from the exact
   // stored content so it matches the recompute at /verify — the client never derives it.
+  // Deliberately AFTER the create: the digest is keyed on the record's own id, which is
+  // what keeps two disclosures over the same wallet/period/txs from sharing one digest
+  // (and therefore one irreversible revocation).
   const digest = disclosureDigest({
+    id: created.id,
     address,
     periodStart: d.periodStart,
     periodEnd: d.periodEnd,

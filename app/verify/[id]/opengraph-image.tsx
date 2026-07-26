@@ -10,6 +10,7 @@ import {
 } from "@/lib/disclosure";
 import { serverClient } from "@/lib/rpc";
 import { MAX_DISCLOSURE_TX, recompute, type RecomputeResult } from "@/lib/verify";
+import { disclosureDigest, readAnchor } from "@/lib/registry";
 import { formatAmount, shorten } from "@/lib/utils";
 
 // Route segment config
@@ -134,11 +135,27 @@ export default async function OpengraphImage({
       return genericCard();
     }
 
-    const result = await recompute(
-      serverClient(),
+    const client = serverClient();
+
+    // A revoked proof must stop unfurling with its figures, or revocation only
+    // withdraws the page while every chat that ever saw the link keeps showing
+    // the total. readAnchor fails closed, so an unreadable registry yields no
+    // anchor and the card falls through to the same generic result.
+    const anchor = await readAnchor(
+      client,
       d.address as Address,
-      d.txHashes,
+      disclosureDigest({
+        id: d.id,
+        address: d.address,
+        periodStart: d.periodStart,
+        periodEnd: d.periodEnd,
+        txHashes: d.txHashes,
+      }),
+      null,
     );
+    if (anchor.status === "revoked" || anchor.status === "unknown") return genericCard();
+
+    const result = await recompute(client, d.address as Address, d.txHashes);
     // Fail closed. Nothing resolved on chain is a failed read, not an income of zero;
     // and a total missing even one disclosed tx (an Arc RPC rate-limit is enough) is an
     // UNDERSTATED figure. The verify page has room to caveat a partial recompute, this

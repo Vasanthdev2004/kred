@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { decodeEventLog, type Address, type Hex } from "viem";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { loadDisclosure } from "@/lib/disclosure";
 import { serverClient } from "@/lib/rpc";
 import {
   KRED_REGISTRY_ABI,
@@ -40,24 +41,20 @@ export async function PATCH(
     );
   }
 
-  const d = await db.disclosure.findUnique({ where: { id: params.id } });
+  // Load through the SAME parser /verify uses (lib/disclosure.ts). Filtering the stored
+  // hashes any other way here — e.g. accepting every string instead of applying TX_HASH —
+  // would let this route verify a digest /verify never computes, so the badge and the
+  // recorded tx would describe different things.
+  const d = await loadDisclosure(params.id);
   if (!d) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  // Recompute the exact digest this disclosure anchors (from stored content).
-  let txHashes: string[] = [];
-  try {
-    const raw = JSON.parse(d.txHashes);
-    txHashes = Array.isArray(raw)
-      ? raw.filter((h): h is string => typeof h === "string")
-      : [];
-  } catch {
-    /* corrupt record → digest below simply won't match any real anchor */
-  }
+  // The exact digest this disclosure anchors (from stored content).
   const digest = disclosureDigest({
+    id: d.id,
     address: d.address,
     periodStart: d.periodStart,
     periodEnd: d.periodEnd,
-    txHashes,
+    txHashes: d.txHashes,
   });
 
   // Verify the tx really anchored (owner = d.address, this digest) via its logs.

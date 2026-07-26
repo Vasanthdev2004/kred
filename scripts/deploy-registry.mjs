@@ -80,7 +80,21 @@ if (receipt.status !== "success" || !receipt.contractAddress) {
   process.exit(1);
 }
 
+// Prove there is actually code at the address before printing something to paste into
+// NEXT_PUBLIC_KRED_REGISTRY_ADDRESS. A no-code address dark-fails the whole site: viem's
+// multicall throws, readAnchor returns `unknown`, and — because every gate fails closed —
+// EVERY verify page renders "Can't confirm status" with no error anywhere to explain it.
+const code = await publicClient.getCode({ address: receipt.contractAddress });
+if (!code || code === "0x") {
+  console.error(
+    `✗ No bytecode at ${receipt.contractAddress} — the deploy did not stick.`,
+  );
+  console.error("  Do NOT set NEXT_PUBLIC_KRED_REGISTRY_ADDRESS to it. Aborting.");
+  process.exit(1);
+}
+
 console.log(`\n✅ KredRegistry deployed at: ${receipt.contractAddress}`);
+console.log(`   bytecode verified on-chain (${(code.length - 2) / 2} bytes)`);
 console.log(
   `   explorer: https://testnet.arcscan.app/address/${receipt.contractAddress}`,
 );

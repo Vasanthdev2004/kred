@@ -6,6 +6,7 @@ import type { Hex } from "viem";
 import { WalletButton } from "@/components/wallet-button";
 import { Check, Copy, ExternalLink, ShieldCheck } from "lucide-react";
 import { usePreviewAddress } from "@/lib/preview";
+import { ownerCommitment } from "@/lib/registry";
 import { useIncome } from "@/hooks/use-income";
 import { type Payment } from "@/lib/indexer";
 import { formatAmount } from "@/lib/utils";
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TokenBadge } from "@/components/token-badge";
 import { AnchorButton } from "@/components/anchor-button";
+import { RevokeButton } from "@/components/revoke-button";
 import { ShareOnX } from "@/components/share-on-x";
 
 const ym = (ts: number) => new Date(ts).toISOString().slice(0, 7);
@@ -277,6 +279,7 @@ function ShareResult({
         />
       </div>
       <AnchorButton disclosureId={disclosureId} digest={digest} owner={owner} />
+      <RevokeButton digest={digest} ownerHash={ownerCommitment(owner)} />
       <div className="mt-4 flex items-center justify-center gap-4 text-sm">
         <a
           href={url}

@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { Anchor, ExternalLink, ShieldCheck, TriangleAlert } from "lucide-react";
+import type { Hex } from "viem";
 import type { RecomputeResult } from "@/lib/verify";
-import type { AnchorProof } from "@/lib/registry";
+import { ownerCommitment, type AnchorState } from "@/lib/registry";
 import { explorerTx } from "@/config/arc";
 import { formatAmount, formatDate, shorten } from "@/lib/utils";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/logo";
 import { TokenBadge } from "@/components/token-badge";
+import { RevokeButton } from "@/components/revoke-button";
 
 interface DisclosureMeta {
   address: string;
@@ -23,18 +25,24 @@ export function VerifyView({
   fields,
   result,
   anchor,
+  digest = null,
   droppedTx = 0,
 }: {
   disclosure: DisclosureMeta;
   fields: Set<string>;
-  result: RecomputeResult;
-  anchor?: AnchorProof | null;
+  /** null when the page declined to recompute at all (withdrawn or unconfirmable proof
+   *  — see app/verify/[id]/page.tsx). Treated exactly like nothing verified. */
+  result: RecomputeResult | null;
+  anchor: AnchorState;
+  /** server-computed digest of this disclosure, for the owner-only withdraw control.
+   *  Passed down rather than recomputed client-side so there is one digest formula. */
+  digest?: Hex | null;
   /** stored hashes the read-side filter rejected (lib/disclosure.ts) — never verified
    *  and never counted, so the total below is understated by that many payments. */
   droppedTx?: number;
 }) {
   const clients = new Set(
-    result.txs.map((t) => t.memo?.client).filter(Boolean),
+    (result?.txs ?? []).map((t) => t.memo?.client).filter(Boolean),
   ).size;
   const periodLabel =
     disclosure.periodStart === disclosure.periodEnd
@@ -49,7 +57,35 @@ export function VerifyView({
         </Link>
       </div>
 
-      {result.verifiedCount === 0 ? (
+      {anchor.status === "revoked" ? (
+        // Revocation withdraws what was shared, so the figures go with it. Saying
+        // "revoked" while still printing the totals would leave the proof readable
+        // and make the button meaningless.
+        <GlassCard className="p-8 text-center">
+          <TriangleAlert className="mx-auto size-7 text-muted-foreground" />
+          <h1 className="mt-4 text-xl font-semibold">Proof withdrawn</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            The owner revoked this proof on {formatDate(anchor.revokedAt * 1000)}.
+            Its figures are no longer shown here.
+          </p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            The revocation is recorded on Arc, so anyone can confirm it was the
+            owner who withdrew it and when.
+          </p>
+        </GlassCard>
+      ) : anchor.status === "unknown" ? (
+        // We could not reach the registry, so we cannot tell a standing proof from
+        // a withdrawn one. Withhold rather than risk showing figures the owner
+        // already revoked; this clears on the next load.
+        <GlassCard className="p-8 text-center">
+          <TriangleAlert className="mx-auto size-7 text-muted-foreground" />
+          <h1 className="mt-4 text-xl font-semibold">Can&apos;t confirm status</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Arc could not be reached to check whether this proof is still
+            standing, so its figures are withheld. Try again in a moment.
+          </p>
+        </GlassCard>
+      ) : !result || result.verifiedCount === 0 ? (
         <GlassCard className="p-8 text-center">
           <TriangleAlert className="mx-auto size-7 text-destructive" />
           <h1 className="mt-4 text-xl font-semibold">Nothing to verify</h1>
@@ -151,7 +187,7 @@ export function VerifyView({
             </div>
           </div>
 
-          {anchor && (
+          {anchor.status === "anchored" && (
             <div className="relative mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2.5 text-xs">
               <Anchor className="size-3.5 shrink-0 text-primary" />
               <span className="font-medium">Anchored on-chain</span>
@@ -187,6 +223,18 @@ export function VerifyView({
             </span>
           </div>
         </GlassCard>
+      )}
+
+      {/* Owner-only withdraw. Without it revocation lives solely in the tab that created
+          the proof, so a link shared on Monday couldn't be pulled on Friday. RevokeButton
+          renders nothing unless the connected wallet hashes to this proof's owner, so
+          every other visitor sees an unchanged page — and it's hidden once the proof is
+          already withdrawn, when there is nothing left to withdraw. */}
+      {digest && anchor.status !== "revoked" && (
+        <RevokeButton
+          digest={digest}
+          ownerHash={ownerCommitment(disclosure.address)}
+        />
       )}
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
