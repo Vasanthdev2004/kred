@@ -124,7 +124,10 @@ export function IncomeSection() {
 
       {isLoading ? (
         <IncomeSkeleton />
-      ) : isError ? (
+      ) : isError || !data ? (
+        // Claiming "no incoming payments yet" is a statement about the wallet, so it
+        // needs a successful read behind it. Without `data` we have no answer, only a
+        // failure, and the two must not look the same.
         <IncomeError onRetry={() => refetch()} />
       ) : rows.length === 0 ? (
         <IncomeEmpty />
@@ -425,7 +428,7 @@ function IncomeError({ onRetry }: { onRetry: () => void }) {
       <TriangleAlert className="size-6 text-destructive" />
       <p className="font-medium">Couldn&apos;t read your income from Arc.</p>
       <p className="max-w-sm text-sm text-muted-foreground">
-        The explorer or RPC may be busy. The chain is fine — this is just the read
+        The explorer or RPC may be busy. The chain is fine, this is just the read
         path.
       </p>
       <Button size="sm" onClick={onRetry}>

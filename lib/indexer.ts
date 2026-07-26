@@ -50,8 +50,56 @@ interface TokenTx {
 const MAX_PAGES = 6;
 const PAGE_SIZE = 1000;
 
+/** Raised when the explorer can't be reached, so callers never mistake an outage for
+ *  an empty history. "You have no income" and "we couldn't check" are different claims,
+ *  and only one of them is ours to make. */
+export class IncomeUnavailableError extends Error {
+  constructor(cause: string) {
+    super(`Arc explorer unavailable: ${cause}`);
+    this.name = "IncomeUnavailableError";
+  }
+}
+
+/** One page of explorer results, retried through a transient blip.
+ *  The testnet explorer serves intermittent 503s, and a single one is not evidence
+ *  about anybody's income, so give it a couple of short retries before giving up. */
+async function fetchPage(url: string, attempts = 3): Promise<TokenTx[]> {
+  let last = "";
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 400 * i));
+    try {
+      const res = await fetch(url, {
+        headers: { accept: "application/json" },
+        cache: "no-store", // an outage must not be cached as an empty history
+      });
+      if (!res.ok) {
+        last = `HTTP ${res.status}`;
+        // 4xx won't fix itself; only retry the transient server-side failures.
+        if (res.status < 500 && res.status !== 429) break;
+        continue;
+      }
+      const json = (await res.json()) as { status?: string; result?: TokenTx[] };
+      // A genuine empty history still comes back as an array (Blockscout answers
+      // "No transactions found" with result: []), so a non-array means malformed.
+      if (!Array.isArray(json.result)) {
+        last = "malformed response";
+        continue;
+      }
+      return json.result;
+    } catch (err) {
+      last = err instanceof Error ? err.message : String(err);
+    }
+  }
+  throw new Error(last || "unreachable");
+}
+
 /** Pull the address's ERC-20 transfers from the explorer, newest first.
- *  `truncated` is true if we hit the page cap with more history still available. */
+ *  `truncated` is true if we hit the page cap with more history still available.
+ *
+ *  Throws if the FIRST page fails: with nothing fetched we know nothing, and returning
+ *  [] there would render as "no incoming payments yet" during an explorer outage. A
+ *  later page failing is different, we already hold real rows, so we keep them and
+ *  flag the result truncated rather than discarding a partial history. */
 async function fetchTokenTx(
   address: Address,
 ): Promise<{ txs: TokenTx[]; truncated: boolean }> {
@@ -61,10 +109,20 @@ async function fetchTokenTx(
     const url =
       `${ARC.explorerUrl}/api?module=account&action=tokentx` +
       `&address=${address}&sort=desc&page=${page}&offset=${PAGE_SIZE}`;
-    const res = await fetch(url, { headers: { accept: "application/json" } });
-    if (!res.ok) break;
-    const json = (await res.json()) as { status?: string; result?: TokenTx[] };
-    const rows = Array.isArray(json.result) ? json.result : [];
+
+    let rows: TokenTx[];
+    try {
+      rows = await fetchPage(url);
+    } catch (err) {
+      if (page === 1) {
+        throw new IncomeUnavailableError(
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+      truncated = true; // partial history: keep what we have, say it's incomplete
+      break;
+    }
+
     out.push(...rows);
     if (rows.length < PAGE_SIZE) break;
     if (page === MAX_PAGES) truncated = true; // full last page → more remains
