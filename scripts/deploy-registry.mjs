@@ -1,7 +1,8 @@
 // Deploy KredRegistry (F6) to Arc testnet.
 //
 //   1. Fund a wallet with Arc testnet USDC (https://faucet.circle.com).
-//   2. Put its key in .env as DEPLOYER_PRIVATE_KEY=0x...   (never commit this).
+//   2. Run the command below; it prompts for the key (hidden, never written to disk).
+//      Or set DEPLOYER_PRIVATE_KEY in .env if you prefer.
 //   3. Run:  npm run deploy:registry
 //   4. Copy the printed address into NEXT_PUBLIC_KRED_REGISTRY_ADDRESS
 //      (local .env + Railway Variables), then redeploy.
@@ -31,16 +32,46 @@ const arc = defineChain({
   testnet: true,
 });
 
-const rawKey = process.env.DEPLOYER_PRIVATE_KEY;
-if (!rawKey) {
-  console.error(
-    "✗ Set DEPLOYER_PRIVATE_KEY in .env (a funded Arc testnet key). Aborting.",
+/** Ask for the key on stdin, so it never has to exist in a file or in shell history.
+ *  Falls back to DEPLOYER_PRIVATE_KEY when one is already set (CI, or if you prefer
+ *  .env). The input is echoed: masking it portably across terminals proved more
+ *  trouble than it was worth, and this is a throwaway deploy key in a local shell. */
+async function promptKey() {
+  const { createInterface } = await import('node:readline');
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await new Promise((resolve) =>
+    rl.question('Paste the deployer private key (NOT your seed phrase): ', resolve),
   );
+  rl.close();
+  return answer;
+}
+
+/** Normalise what a wallet actually hands you: stray whitespace, quotes a paste can
+ *  pick up, and an optional 0x. On failure report only the SHAPE, never the value. */
+function normaliseKey(input) {
+  const cleaned = String(input)
+    .replace(/["'\s]/g, "")
+    .replace(/^0x/i, "");
+  if (/^[0-9a-fA-F]{64}$/.test(cleaned)) return { key: `0x${cleaned}` };
+  const hint = /^[0-9a-fA-F]*$/.test(cleaned)
+    ? `got ${cleaned.length} hex characters, expected 64`
+    : "it contains non-hex characters (a seed phrase is words, not a key)";
+  return { error: hint };
+}
+
+const rawKey = process.env.DEPLOYER_PRIVATE_KEY || (await promptKey());
+if (!rawKey || !rawKey.trim()) {
+  console.error('✗ No key given. Aborting.');
   process.exit(1);
 }
-const account = privateKeyToAccount(
-  rawKey.startsWith("0x") ? rawKey : `0x${rawKey}`,
-);
+const parsed = normaliseKey(rawKey);
+if (parsed.error) {
+  console.error(`✗ That is not a valid private key: ${parsed.error}.`);
+  console.error('  MetaMask: account menu > Account details > Show private key.');
+  console.error('  It looks like 0x followed by 64 hex characters.');
+  process.exit(1);
+}
+const account = privateKeyToAccount(parsed.key);
 
 // --- compile ---------------------------------------------------------------
 const source = fs.readFileSync(
