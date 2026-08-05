@@ -12,10 +12,12 @@ import { nextKey, rotateAfterFailure, keyCount } from "@/lib/agent/limits";
 
 const ENDPOINT = "https://ollama.com/v1/chat/completions";
 
-/** gpt-oss:120b is the strongest tool-caller on Ollama Cloud that still streams fast
- *  enough to feel live. Override per-deploy without a code change if that stops
- *  being true. */
-export const MODEL = process.env.OLLAMA_MODEL?.trim() || "gpt-oss:120b";
+/** Tool calling is non-negotiable here — the assistant is useless if it answers from
+ *  the prompt instead of reading the chain — so verify a replacement actually emits
+ *  tool_calls before switching. Ollama Cloud retires models on a schedule (gemma3:27b
+ *  went 410 on 2026-07-15), hence the env override: a retirement should be a variable
+ *  change, not a deploy. */
+export const MODEL = process.env.OLLAMA_MODEL?.trim() || "gemma4:31b-cloud";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
