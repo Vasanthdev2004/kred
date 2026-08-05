@@ -33,6 +33,14 @@ const CATEGORIES = [
   "other",
 ];
 
+/** Short random salt. Only needs to be unique per request, not unguessable — it
+ *  distinguishes escrows, it does not protect them. */
+function newNonce(): string {
+  const b = new Uint8Array(6);
+  crypto.getRandomValues(b);
+  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+}
+
 export function RequestBuilder() {
   const { address } = useAccount();
   const [to, setTo] = useState("");
@@ -48,6 +56,11 @@ export function RequestBuilder() {
   });
   const [copied, setCopied] = useState(false);
 
+  // One salt per visit to this page, so each link issued from it is its own escrow.
+  // Held steady while the form is edited — regenerating per keystroke would change
+  // the link, and the escrow id, underneath someone still typing.
+  const nonce = useMemo(newNonce, []);
+
   // Default the recipient to the connected wallet once it's known.
   useEffect(() => {
     if (address && !to) setTo(address);
@@ -61,8 +74,8 @@ export function RequestBuilder() {
   const valid = isAddress(to) && Number(form.amount) > 0;
 
   const path = useMemo(
-    () => (valid ? buildRequestPath({ to: to as `0x${string}`, ...form }) : ""),
-    [valid, to, form],
+    () => (valid ? buildRequestPath({ to: to as `0x${string}`, ...form, nonce }) : ""),
+    [valid, to, form, nonce],
   );
   const url =
     path && typeof window !== "undefined"

@@ -16,6 +16,9 @@ export interface PaymentRequest {
   period?: string;
   category?: string;
   note?: string;
+  /** Opaque per-request salt. URL-only, never part of the memo — it exists so two
+   *  identical invoices do not derive the same escrow id. */
+  nonce?: string;
 }
 
 const MEMO_KEYS = [
@@ -29,7 +32,12 @@ const MEMO_KEYS = [
 
 const AMOUNT_RE = /^\d+(\.\d+)?$/;
 
-/** Build the shareable /pay path for a request (empty fields omitted). */
+/** Build the shareable /pay path for a request (empty fields omitted).
+ *
+ *  `nonce` rides in the URL but NOT in the memo: it exists only to make each request
+ *  a distinct escrow. Without it, re-issuing the same invoice number for the same
+ *  amount derives the same escrow id, and the payer's page shows the PREVIOUS
+ *  escrow — reporting "settled" for an invoice nobody has paid. */
 export function buildRequestPath(r: PaymentRequest): string {
   const p = new URLSearchParams();
   p.set("to", r.to);
@@ -39,6 +47,7 @@ export function buildRequestPath(r: PaymentRequest): string {
     const v = r[k];
     if (v && v.trim()) p.set(k, v.trim());
   }
+  if (r.nonce && r.nonce.trim()) p.set("n", r.nonce.trim());
   return `/pay?${p.toString()}`;
 }
 
@@ -53,6 +62,8 @@ export function parseRequest(sp: URLSearchParams): PaymentRequest | null {
   if (!amount || !AMOUNT_RE.test(amount) || Number(amount) <= 0) return null;
 
   const req: PaymentRequest = { to: getAddress(to), token, amount };
+  const n = sp.get('n');
+  if (n) req.nonce = n.slice(0, 32);
   for (const k of MEMO_KEYS) {
     const v = sp.get(k);
     if (v) req[k] = v;

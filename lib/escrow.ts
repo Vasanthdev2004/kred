@@ -119,12 +119,19 @@ export function isEscrowEnabled(): boolean {
  *  parties could observe differently (no timestamps, no locale formatting). */
 export function invoiceIdFor(r: PaymentRequest): Hex {
   const canonical = JSON.stringify({
-    v: 1,
+    v: 2,
     to: r.to.toLowerCase(),
     token: r.token,
     amount: r.amount,
     invoice: r.invoice?.trim() ?? "",
     period: r.period?.trim() ?? "",
+    // The salt is what makes each issued request its own escrow. Without it,
+    // re-issuing the same invoice number and amount derives the same id, and the
+    // payer's page reports the PREVIOUS escrow as settled for an invoice they have
+    // not paid. Links minted before this existed have no nonce and keep their old
+    // v1 id shape only in the sense that they collide with each other, which is the
+    // behaviour they already had.
+    nonce: r.nonce?.trim() ?? "",
   });
   return keccak256(toHex(canonical));
 }
