@@ -113,6 +113,30 @@ export const TOOLS: ToolDef[] = [
   {
     type: "function",
     function: {
+      name: "propose_untag",
+      description:
+        "Surface a request to REMOVE manual tags, for the user to confirm. This does NOT delete anything - the user reviews each one and accepts or rejects it. Only manual tags can be removed. A memo written onchain by the payer is part of the transaction and cannot be edited or deleted by anyone, including the user; say so plainly rather than implying it was removed.",
+      parameters: {
+        type: "object",
+        properties: {
+          txHashes: {
+            type: "array",
+            description:
+              "Transaction hashes whose manual tags should be removed. Use the 66-character txHash values from get_income, never the payer address.",
+            items: { type: "string" },
+          },
+          reason: {
+            type: "string",
+            description: "Short note on why, shown to the user with the request.",
+          },
+        },
+        required: ["txHashes"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "draft_payment_request",
       description:
         "Build a shareable payment-request link the user can send to a client. The memo fields travel with the payment onchain. This only builds the link - the user sends it, and the client pays it from their own wallet. Only amount and token are required: OMIT any optional field the user did not mention rather than asking them for it. They can edit the request afterwards.",
@@ -187,18 +211,46 @@ function clamp(v: number, lo: number, hi: number, fallback: number): number {
 }
 
 async function getIncome(owner: Address, limit: number): Promise<string> {
-  const { payments, truncated } = await fetchIncome(serverClient(), owner);
+  // Manual tags live in the DB, memos live on chain. Reading only the chain made the
+  // agent blind to every tag the user had actually applied — it would report "no
+  // tags" while the dashboard showed them.
+  const [{ payments, truncated }, tags] = await Promise.all([
+    fetchIncome(serverClient(), owner),
+    db.tag.findMany({
+      where: { address: owner.toLowerCase() },
+      select: { txHash: true, client: true, project: true, category: true },
+    }),
+  ]);
   if (payments.length === 0) {
     return JSON.stringify({
       payments: [],
       note: "No incoming payments found for this wallet on Arc.",
     });
   }
+
+  const tagByTx = new Map(tags.map((t) => [t.txHash.toLowerCase(), t]));
+
   return JSON.stringify({
-    payments: payments.slice(0, clamp(limit, 1, 50, 25)).map(row),
+    payments: payments.slice(0, clamp(limit, 1, 50, 25)).map((p) => {
+      const tag = tagByTx.get(p.txHash.toLowerCase());
+      return {
+        ...row(p),
+        // Which kind of label this is decides what can be done with it: a manual
+        // tag is removable, an onchain memo is part of the transaction forever.
+        manualTag: tag
+          ? {
+              client: fence(tag.client),
+              project: fence(tag.project),
+              category: fence(tag.category),
+            }
+          : null,
+        labelSource: p.memo ? "onchain-memo" : tag ? "manual-tag" : "none",
+      };
+    }),
     totalPayments: payments.length,
+    manualTagCount: tags.length,
     truncated,
-    note: NEVER_SUM,
+    note: `${NEVER_SUM} labelSource says where a label came from: an onchain memo cannot be removed by anyone, a manual tag can.`,
   });
 }
 
@@ -340,7 +392,10 @@ export interface ToolOutcome {
   result: string;
   /** Structured payload for the UI to render as something to act on, rather than
    *  prose for the model to narrate. */
-  surface?: { kind: "proposals" | "request" | "disclosure"; data: unknown };
+  surface?: {
+    kind: "proposals" | "request" | "disclosure" | "untag";
+    data: unknown;
+  };
 }
 
 /** Run one tool call. `owner` is null when no wallet is connected, in which case every
@@ -413,6 +468,63 @@ export async function runTool(
           }),
           surface: good.length
             ? { kind: "proposals", data: good }
+            : undefined,
+        };
+      }
+
+      case "propose_untag": {
+        const raw = Array.isArray(args.txHashes) ? args.txHashes : [];
+        // Same validation as propose_tags: only hashes belonging to THIS wallet's
+        // real payments reach a button, so a confused model cannot offer to delete
+        // something that isn't the user's.
+        const { payments } = await fetchIncome(serverClient(), owner);
+        const real = new Set(payments.map((p) => p.txHash.toLowerCase()));
+        const onchain = new Set(
+          payments.filter((p) => p.memo).map((p) => p.txHash.toLowerCase()),
+        );
+        // Only rows that actually carry a manual tag are removable.
+        const tagged = new Set(
+          (
+            await db.tag.findMany({
+              where: { address: owner.toLowerCase() },
+              select: { txHash: true },
+            })
+          ).map((t) => t.txHash.toLowerCase()),
+        );
+
+        const good: string[] = [];
+        const immutable: string[] = [];
+        let rejected = 0;
+        for (const h of raw) {
+          const hash = typeof h === "string" ? h.trim() : "";
+          if (!TX_HASH_RE.test(hash) || !real.has(hash.toLowerCase())) {
+            rejected += 1;
+          } else if (onchain.has(hash.toLowerCase()) && !tagged.has(hash.toLowerCase())) {
+            immutable.push(hash); // memo is in the transaction; nobody can remove it
+          } else {
+            good.push(hash);
+          }
+        }
+
+        return {
+          result: JSON.stringify({
+            shown: good.length,
+            rejected,
+            onchainMemos: immutable.length,
+            note:
+              (immutable.length
+                ? `${immutable.length} of these carry a memo written onchain by the payer. That is part of the transaction and cannot be removed by anyone - explain this rather than implying it was deleted. `
+                : "") +
+              "Anything shown is on screen for the user to confirm. Nothing has been deleted. Do not claim you removed a tag.",
+          }),
+          surface: good.length
+            ? {
+                kind: "untag",
+                data: {
+                  txHashes: good,
+                  reason: typeof args.reason === "string" ? args.reason : undefined,
+                },
+              }
             : undefined,
         };
       }

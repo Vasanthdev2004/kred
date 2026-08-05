@@ -36,6 +36,7 @@ interface Msg {
   proposals?: Proposal[];
   requestPath?: string;
   disclosure?: DisclosurePreview;
+  untag?: { txHashes: string[]; reason?: string };
 }
 
 const SUGGESTIONS = [
@@ -133,6 +134,7 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
       const proposals: Proposal[] = [];
       let requestPath: string | undefined;
       let disclosure: DisclosurePreview | undefined;
+      let untag: { txHashes: string[]; reason?: string } | undefined;
 
       try {
         const res = await fetch("/api/agent", {
@@ -192,6 +194,8 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
                 requestPath = (ev.data as { path?: string })?.path;
               } else if (ev.kind === "disclosure") {
                 disclosure = ev.data as DisclosurePreview;
+              } else if (ev.kind === "untag") {
+                untag = ev.data as { txHashes: string[]; reason?: string };
               }
             } else if (ev.type === "error" && ev.value) {
               acc += (acc ? "\n\n" : "") + ev.value;
@@ -208,7 +212,7 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
         setBusy(false);
         setState("idle");
         setStreaming("");
-        if (acc || proposals.length || requestPath || disclosure) {
+        if (acc || proposals.length || requestPath || disclosure || untag) {
           setMessages((m) => [
             ...m,
             {
@@ -218,6 +222,7 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
               proposals: proposals.length ? proposals : undefined,
               requestPath,
               disclosure,
+              untag,
             },
           ]);
         }
@@ -315,6 +320,35 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
     }
   }
 
+  /** Removing tags is a delete, so it happens here on an explicit confirmation and
+   *  through the same endpoint the manual UI uses. The agent only ever asked. */
+  const untagAll = useCallback(
+    async (hashes: string[], msgId: number) => {
+      if (!address) return;
+      let ok = 0;
+      for (const h of hashes) {
+        try {
+          const res = await fetch(
+            `/api/tags?address=${address}&txHash=${h}&logIndex=0`,
+            { method: "DELETE" },
+          );
+          if (res.ok) ok += 1;
+        } catch {
+          /* counted as a failure below */
+        }
+      }
+      if (ok) qc.invalidateQueries({ queryKey: ["tags"] });
+      if (ok === hashes.length)
+        toast.success(`Removed ${ok} tag${ok === 1 ? "" : "s"}`);
+      else if (ok) toast.warning(`Removed ${ok} of ${hashes.length}`);
+      else toast.error("Couldn't remove those tags.");
+      setMessages((m) =>
+        m.map((x) => (x.id === msgId ? { ...x, untag: undefined } : x)),
+      );
+    },
+    [address, qc],
+  );
+
   const empty = messages.length === 0 && !streaming;
 
   return (
@@ -367,7 +401,7 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
         )}
 
         {messages.map((m) => (
-          <Bubble key={m.id} msg={m} onAccept={accept} onAcceptAll={acceptAll} onDismiss={dismiss} />
+          <Bubble key={m.id} msg={m} onAccept={accept} onAcceptAll={acceptAll} onDismiss={dismiss} onUntag={untagAll} />
         ))}
 
         {streaming && (
@@ -376,6 +410,7 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
             onAccept={accept}
             onAcceptAll={acceptAll}
             onDismiss={dismiss}
+            onUntag={untagAll}
           />
         )}
       </div>
@@ -429,11 +464,13 @@ function Bubble({
   onAccept,
   onAcceptAll,
   onDismiss,
+  onUntag,
 }: {
   msg: Msg;
   onAccept: (p: Proposal, msgId: number) => void;
   onAcceptAll: (ps: Proposal[], msgId: number) => void;
   onDismiss: (txHash: string, msgId: number) => void;
+  onUntag: (hashes: string[], msgId: number) => void;
 }) {
   const mine = msg.role === "user";
   return (
@@ -482,6 +519,14 @@ function Bubble({
           onDismiss={() => onDismiss(p.txHash, msg.id)}
         />
       ))}
+
+      {msg.untag && (
+        <UntagCard
+          txHashes={msg.untag.txHashes}
+          reason={msg.untag.reason}
+          onConfirm={() => onUntag(msg.untag!.txHashes, msg.id)}
+        />
+      )}
 
       {msg.requestPath && <RequestCard path={msg.requestPath} />}
       {msg.disclosure && <DisclosureCard d={msg.disclosure} />}
@@ -615,6 +660,53 @@ function DisclosureCard({ d }: { d: DisclosurePreview }) {
       >
         Create it on Share <ExternalLink className="size-3" />
       </a>
+    </motion.div>
+  );
+}
+
+/** A request to delete manual tags. Framed as a removal, not a suggestion, because
+ *  it destroys data — and named as reversible, because it is: the payment is
+ *  untouched and can be tagged again. */
+function UntagCard({
+  txHashes,
+  reason,
+  onConfirm,
+}: {
+  txHashes: string[];
+  reason?: string;
+  onConfirm: () => void;
+}) {
+  const [done, setDone] = useState(false);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-[88%] rounded-xl border border-destructive/30 bg-destructive/5 p-3"
+    >
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        Remove tags · not removed yet
+      </div>
+      <p className="mt-1.5 text-sm">
+        {txHashes.length} manual tag{txHashes.length === 1 ? "" : "s"} will be cleared.
+      </p>
+      {reason && <p className="mt-1 text-xs text-muted-foreground">{reason}</p>}
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        The payments themselves are untouched, and you can tag them again later.
+      </p>
+      <div className="mt-3 flex gap-2">
+        <Button
+          size="sm"
+          variant="destructive"
+          className="h-7 flex-1 text-xs"
+          disabled={done}
+          onClick={() => {
+            setDone(true);
+            onConfirm();
+          }}
+        >
+          Remove {txHashes.length}
+        </Button>
+      </div>
     </motion.div>
   );
 }
