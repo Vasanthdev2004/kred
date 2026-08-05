@@ -31,6 +31,8 @@ export function fence(value: string | null | undefined): string | null {
 }
 
 const AMOUNT_RE = /^\d+(\.\d+)?$/;
+/** 0x + 64 hex. An address is 0x + 40, which is exactly the confusion this catches. */
+const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const PERIOD_RE = /^\d{4}-\d{2}$/;
 const DISCLOSURE_FIELDS = ["period", "count", "clients", "wallet"] as const;
 
@@ -86,7 +88,11 @@ export const TOOLS: ToolDef[] = [
             items: {
               type: "object",
               properties: {
-                txHash: { type: "string", description: "The payment's transaction hash." },
+                txHash: {
+                  type: "string",
+                  description:
+                    "The payment's transaction hash: the 66-character txHash field (0x + 64 hex). NEVER the `from` field - that is the payer's address and is shorter. Copy it verbatim from get_untagged_payments.",
+                },
                 client: { type: "string", description: "Suggested client name." },
                 project: { type: "string", description: "Suggested project." },
                 category: { type: "string", description: "Suggested category." },
@@ -369,14 +375,44 @@ export async function runTool(
 
       case "propose_tags": {
         const list = Array.isArray(args.proposals) ? args.proposals : [];
-        // Echoed to the UI for confirmation. Nothing is written here; the user
-        // accepts each suggestion and the existing /api/tags route saves it.
+
+        // The model confuses `from` (a 40-hex address) with `txHash` (64-hex),
+        // and a shortened address looks entirely plausible on a card. Validate
+        // against this wallet's ACTUAL payments: anything that isn't a real tx
+        // hash we indexed gets dropped here rather than becoming a button that
+        // fails when pressed. Cross-checking against real payments also stops a
+        // proposal targeting someone else's transaction.
+        const { payments } = await fetchIncome(serverClient(), owner);
+        const real = new Set(payments.map((p) => p.txHash.toLowerCase()));
+
+        const good: unknown[] = [];
+        const bad: string[] = [];
+        for (const raw of list) {
+          const p = (raw ?? {}) as { txHash?: unknown };
+          const hash = typeof p.txHash === "string" ? p.txHash.trim() : "";
+          if (TX_HASH_RE.test(hash) && real.has(hash.toLowerCase())) {
+            good.push({ ...(raw as object), txHash: hash });
+          } else {
+            bad.push(hash || "(missing)");
+          }
+        }
+
         return {
           result: JSON.stringify({
-            shown: list.length,
-            note: "Suggestions are now on screen for the user to accept or reject. Nothing has been saved. Do not claim you tagged anything.",
+            shown: good.length,
+            rejected: bad.length,
+            ...(bad.length
+              ? {
+                  problem:
+                    "Rejected entries did not carry a real transaction hash for this wallet. txHash must be the 66-character value from get_untagged_payments (0x + 64 hex), NOT the payer address in the `from` field. Re-read the payments and propose again using the correct txHash.",
+                  rejectedValues: bad.slice(0, 5),
+                }
+              : {}),
+            note: "Anything shown is on screen for the user to accept or reject. Nothing has been saved. Do not claim you tagged anything.",
           }),
-          surface: { kind: "proposals", data: list },
+          surface: good.length
+            ? { kind: "proposals", data: good }
+            : undefined,
         };
       }
 

@@ -232,12 +232,24 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
             category: p.category ?? null,
           }),
         });
-        if (!res.ok) throw new Error(String(res.status));
+        if (!res.ok) {
+          // Say what actually failed. "Couldn't save that tag" hid a malformed
+          // txHash for far too long.
+          const detail = await res
+            .json()
+            .then((j) => j?.error)
+            .catch(() => null);
+          throw new Error(
+            typeof detail === "string" ? detail : `save failed (${res.status})`,
+          );
+        }
         toast.success(`Tagged ${p.client ?? "payment"}`);
         qc.invalidateQueries({ queryKey: ["tags"] });
         dismiss(p.txHash, msgId);
-      } catch {
-        toast.error("Couldn't save that tag.");
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? `Couldn't save: ${err.message}` : "Couldn't save that tag.",
+        );
       }
     },
     [address, qc, dismiss],
