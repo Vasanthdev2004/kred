@@ -1,0 +1,172 @@
+<figure style="margin:0;padding:28px;background:#ffffff;color:#0f1720;font-family:'Segoe UI',Inter,system-ui,sans-serif;">
+<svg viewBox="0 0 1440 980" role="img" aria-label="Kred architecture: a payment request is settled through Arc's Memo contract so the memo travels with the USDC transfer; Kred's database stores only tags and which transactions to disclose, never amounts; the public verify page recomputes every figure live from Arc receipts and reads the on-chain anchor, so no figure is ever trusted from the database." style="max-width:100%;height:auto;display:block;">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f1720"/>
+    </marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0E9F6E"/>
+    </marker>
+    <style>
+      .box{fill:#fff;stroke:#0f1720;stroke-width:1.5;}
+      .zone{fill:none;stroke:#0f1720;stroke-width:1;stroke-dasharray:5 5;opacity:.3;}
+      .actor{fill:#f2f5f7;stroke:#0f1720;stroke-width:1.5;}
+      .chain{fill:#f0fbf6;stroke:#0E9F6E;stroke-width:1.5;}
+      .t{font-size:15px;fill:#0f1720;}
+      .b{font-size:15px;font-weight:650;fill:#0f1720;}
+      .s{font-size:12.5px;fill:#0f1720;opacity:.72;}
+      .m{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;fill:#0f1720;opacity:.75;}
+      .lbl{font-size:12.5px;fill:#0f1720;opacity:.85;}
+      .glbl{font-size:12.5px;fill:#0E9F6E;font-weight:600;}
+      .zt{font-size:12px;fill:#0f1720;opacity:.5;letter-spacing:.09em;font-weight:600;}
+      .ln{stroke:#0f1720;stroke-width:1.6;fill:none;}
+      .gln{stroke:#0E9F6E;stroke-width:2.2;fill:none;}
+      .dln{stroke:#0f1720;stroke-width:1.6;fill:none;stroke-dasharray:6 5;opacity:.7;}
+    </style>
+  </defs>
+
+  <text x="0" y="24" class="b" style="font-size:21px">Kred — verifiable proof-of-income on Arc</text>
+  <text x="0" y="48" class="s">A payment carries its own invoice context onchain. The database never holds an amount, so a verifier recomputes every figure from Arc itself.</text>
+
+  <!-- ============ BAND 1: GET PAID ============ -->
+  <rect class="zone" x="0" y="76" width="1440" height="166" rx="10"/>
+  <text x="16" y="98" class="zt">1 · GET PAID, WITH CONTEXT ATTACHED</text>
+
+  <rect class="actor" x="16" y="120" width="132" height="60" rx="8"/>
+  <text x="82" y="146" class="t" text-anchor="middle">Freelancer</text>
+  <text x="82" y="165" class="s" text-anchor="middle">wallet</text>
+
+  <rect class="box" x="212" y="112" width="182" height="76" rx="8"/>
+  <text x="303" y="140" class="b" text-anchor="middle">/request</text>
+  <text x="303" y="160" class="s" text-anchor="middle">client, invoice,</text>
+  <text x="303" y="176" class="s" text-anchor="middle">project, period</text>
+
+  <rect class="actor" x="470" y="120" width="132" height="60" rx="8"/>
+  <text x="536" y="146" class="t" text-anchor="middle">Client</text>
+  <text x="536" y="165" class="s" text-anchor="middle">pays the link</text>
+
+  <rect class="box" x="668" y="112" width="172" height="76" rx="8"/>
+  <text x="754" y="140" class="b" text-anchor="middle">/pay</text>
+  <text x="754" y="160" class="s" text-anchor="middle">signs one tx</text>
+  <text x="754" y="176" class="s" text-anchor="middle">in their wallet</text>
+
+  <rect class="chain" x="916" y="104" width="230" height="92" rx="8"/>
+  <text x="1031" y="130" class="b" text-anchor="middle">Arc Memo contract</text>
+  <text x="1031" y="149" class="m" text-anchor="middle">0x5294…de505</text>
+  <text x="1031" y="170" class="s" text-anchor="middle">wraps the transfer,</text>
+  <text x="1031" y="186" class="s" text-anchor="middle">emits Memo event</text>
+
+  <rect class="chain" x="1214" y="112" width="212" height="76" rx="8"/>
+  <text x="1320" y="138" class="b" text-anchor="middle">USDC / EURC</text>
+  <text x="1320" y="157" class="m" text-anchor="middle">0x3600… · 0x89B5…</text>
+  <text x="1320" y="177" class="s" text-anchor="middle">native on Arc</text>
+
+  <line class="ln" x1="148" y1="150" x2="206" y2="150" marker-end="url(#a)"/>
+  <line class="ln" x1="394" y1="150" x2="464" y2="150" marker-end="url(#a)"/>
+  <text x="429" y="141" class="lbl" text-anchor="middle">link</text>
+  <text x="429" y="222" class="s" text-anchor="middle">shareable URL, no server state</text>
+  <line class="ln" x1="602" y1="150" x2="662" y2="150" marker-end="url(#a)"/>
+  <line class="gln" x1="840" y1="150" x2="910" y2="150" marker-end="url(#ag)"/>
+  <text x="875" y="141" class="glbl" text-anchor="middle">memo()</text>
+  <line class="gln" x1="1146" y1="150" x2="1208" y2="150" marker-end="url(#ag)"/>
+  <text x="1177" y="141" class="glbl" text-anchor="middle">transfer</text>
+
+  <!-- ============ BAND 2: INDEX ============ -->
+  <rect class="zone" x="0" y="292" width="1440" height="200" rx="10"/>
+  <text x="16" y="314" class="zt">2 · READ IT BACK</text>
+
+  <rect class="chain" x="1084" y="336" width="342" height="128" rx="8"/>
+  <text x="1255" y="364" class="b" text-anchor="middle">Arc testnet · chain 5042002</text>
+  <text x="1255" y="388" class="s" text-anchor="middle">Arcscan tokentx API — payment history</text>
+  <text x="1255" y="410" class="s" text-anchor="middle">RPC tx receipts — decode the Memo event</text>
+  <text x="1255" y="436" class="s" text-anchor="middle">Multicall3 batches reads; the public RPC</text>
+  <text x="1255" y="454" class="s" text-anchor="middle">rate-limits rapid separate eth_calls</text>
+
+  <rect class="box" x="600" y="344" width="230" height="112" rx="8"/>
+  <text x="715" y="372" class="b" text-anchor="middle">Kred indexer</text>
+  <text x="715" y="394" class="m" text-anchor="middle">/api/income</text>
+  <text x="715" y="416" class="s" text-anchor="middle">incoming USDC/EURC only,</text>
+  <text x="715" y="434" class="s" text-anchor="middle">enriched with its memo</text>
+
+  <rect class="box" x="176" y="336" width="268" height="128" rx="8"/>
+  <text x="310" y="364" class="b" text-anchor="middle">Postgres (Prisma)</text>
+  <text x="310" y="388" class="m" text-anchor="middle">Tag · Disclosure</text>
+  <text x="310" y="414" class="s" text-anchor="middle">manual tags, and which txs</text>
+  <text x="310" y="432" class="s" text-anchor="middle">+ which fields to reveal</text>
+  <text x="310" y="456" class="b" text-anchor="middle" style="fill:#0E9F6E">no amounts, ever</text>
+
+  <line class="ln" x1="1078" y1="400" x2="836" y2="400" marker-end="url(#a)"/>
+  <text x="957" y="391" class="lbl" text-anchor="middle">history + receipts</text>
+  <line class="dln" x1="594" y1="400" x2="450" y2="400" marker-end="url(#a)"/>
+  <text x="522" y="391" class="lbl" text-anchor="middle">tags only</text>
+
+  <!-- ============ BAND 3: PROVE ============ -->
+  <rect class="zone" x="0" y="512" width="1440" height="452" rx="10"/>
+  <text x="16" y="534" class="zt">3 · PROVE IT, WITHOUT BEING TRUSTED</text>
+
+  <rect class="actor" x="16" y="560" width="132" height="60" rx="8"/>
+  <text x="82" y="586" class="t" text-anchor="middle">Freelancer</text>
+  <text x="82" y="605" class="s" text-anchor="middle">picks what to show</text>
+
+  <rect class="box" x="212" y="552" width="228" height="76" rx="8"/>
+  <text x="326" y="580" class="b" text-anchor="middle">/share</text>
+  <text x="326" y="600" class="s" text-anchor="middle">period, payment count,</text>
+  <text x="326" y="616" class="s" text-anchor="middle">clients, wallet — each optional</text>
+
+  <rect class="box" x="516" y="552" width="240" height="76" rx="8"/>
+  <text x="636" y="578" class="b" text-anchor="middle">digest</text>
+  <text x="636" y="598" class="m" text-anchor="middle">keccak256(id, owner,</text>
+  <text x="636" y="615" class="m" text-anchor="middle">period, tx set)</text>
+
+  <rect class="chain" x="836" y="540" width="300" height="100" rx="8"/>
+  <text x="986" y="568" class="b" text-anchor="middle">KredRegistry</text>
+  <text x="986" y="587" class="m" text-anchor="middle">0x4d05…3575</text>
+  <text x="986" y="609" class="s" text-anchor="middle">anchor(digest) · revoke(digest)</text>
+  <text x="986" y="628" class="s" text-anchor="middle">keyed by msg.sender · no PII</text>
+
+  <line class="ln" x1="148" y1="590" x2="206" y2="590" marker-end="url(#a)"/>
+  <line class="ln" x1="440" y1="590" x2="510" y2="590" marker-end="url(#a)"/>
+  <line class="gln" x1="756" y1="590" x2="830" y2="590" marker-end="url(#ag)"/>
+  <text x="793" y="581" class="glbl" text-anchor="middle">anchor</text>
+
+  <!-- verify row -->
+  <rect class="actor" x="16" y="782" width="132" height="72" rx="8"/>
+  <text x="82" y="810" class="t" text-anchor="middle">Verifier</text>
+  <text x="82" y="829" class="s" text-anchor="middle">bank, landlord,</text>
+  <text x="82" y="845" class="s" text-anchor="middle">client</text>
+
+  <rect class="box" x="212" y="766" width="272" height="104" rx="8"/>
+  <text x="348" y="794" class="b" text-anchor="middle">/verify/[id] — public</text>
+  <text x="348" y="816" class="s" text-anchor="middle">no login, no Kred account</text>
+  <text x="348" y="840" class="s" text-anchor="middle">totals shown per token;</text>
+  <text x="348" y="858" class="s" text-anchor="middle">USDC and EURC never summed</text>
+
+  <rect class="box" x="560" y="766" width="248" height="104" rx="8"/>
+  <text x="684" y="794" class="b" text-anchor="middle">recompute()</text>
+  <text x="684" y="818" class="s" text-anchor="middle">re-reads every disclosed tx</text>
+  <text x="684" y="838" class="s" text-anchor="middle">receipt from Arc and re-adds</text>
+  <text x="684" y="858" class="s" text-anchor="middle">the totals from scratch</text>
+
+  <line class="ln" x1="148" y1="818" x2="206" y2="818" marker-end="url(#a)"/>
+  <line class="ln" x1="484" y1="818" x2="554" y2="818" marker-end="url(#a)"/>
+
+  <!-- DB supplies only pointers. Routed through the gap between /share and digest
+       so it never crosses a box it has nothing to do with. -->
+  <path class="dln" d="M310 466 L310 506 L478 506 L478 722 L634 722 L634 760" marker-end="url(#a)"/>
+  <text x="420" y="748" class="lbl" text-anchor="middle">which txs + which fields only — never a figure</text>
+
+  <!-- the claim: figures come from chain -->
+  <path class="gln" d="M808 812 L1000 812 L1000 704 L1255 704 L1255 470" marker-end="url(#ag)"/>
+  <text x="1128" y="695" class="glbl" text-anchor="middle">every amount, read live from Arc</text>
+
+  <path class="gln" d="M808 848 L902 848 L902 662 L986 662 L986 646" marker-end="url(#ag)"/>
+  <text x="912" y="770" class="glbl" text-anchor="start">anchor state</text>
+
+  <line class="ln" x1="0" y1="920" x2="1440" y2="920" stroke-opacity=".18"/>
+  <text x="0" y="946" class="s">Next.js 14 App Router · wagmi/viem · Prisma + Postgres · deployed on Railway at kred.today</text>
+  <text x="1440" y="946" class="b" text-anchor="end" style="fill:#0E9F6E">Green = onchain. The chain is the source of truth.</text>
+</svg>
+<figcaption style="margin-top:18px;font-size:13.5px;line-height:1.55;opacity:.78;max-width:1180px;">
+  Kred attaches invoice context to the payment itself through Arc's Memo contract, so the record is created at settlement rather than reconstructed afterwards. Its database stores only tags and which transactions a disclosure reveals — never an amount. When a verifier opens a proof link, every figure is recomputed from Arc receipts on the spot and the anchor is read from KredRegistry, so nothing on the page depends on trusting Kred.
+</figcaption>
+</figure>
