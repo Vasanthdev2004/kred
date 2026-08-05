@@ -16,6 +16,7 @@ import { IncomeSection } from "@/components/income";
 import { IncomeHeatmap } from "@/components/income-heatmap";
 import { IncomeHealth } from "@/components/income-health";
 import { RecurringClients } from "@/components/recurring-clients";
+import { EscrowInbox } from "@/components/escrow-inbox";
 import { useIncome } from "@/hooks/use-income";
 import { useTags } from "@/hooks/use-tags";
 
@@ -93,6 +94,9 @@ export function Dashboard() {
         </div>
 
         <BalanceCards />
+
+        {/* Money committed to you but not yet released. Renders nothing when empty. */}
+        <EscrowInbox />
 
         <IncomeSection />
 

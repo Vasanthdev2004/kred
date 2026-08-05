@@ -212,6 +212,15 @@ export function RequestBuilder() {
               <ExternalLink className="size-3" />
             </a>
           )}
+
+          {/* Escrow lives on the payer's side of this link, so without saying it here
+              the freelancer never learns it exists and cannot offer it to a client. */}
+          <p className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+            Your client can pay this straight away, or commit the funds to escrow on
+            the same link and release them as you deliver. Either way it lands here
+            already categorized. Set an invoice number if you expect escrow, since
+            that is what stops two invoices sharing one escrow.
+          </p>
         </div>
       </GlassCard>
 

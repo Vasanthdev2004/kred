@@ -129,6 +129,13 @@ export function invoiceIdFor(r: PaymentRequest): Hex {
   return keccak256(toHex(canonical));
 }
 
+/** Block KredEscrow was deployed. Scanning from genesis is impossible on Arc (see
+ *  below), and everything before this block is by definition not ours. */
+export const ESCROW_DEPLOY_BLOCK = 55_465_971n;
+
+/** Arc rejects an eth_getLogs range wider than 10,000 blocks with -32614. */
+const LOG_RANGE = 9_000n;
+
 export interface EscrowState {
   payer: Address;
   payee: Address;
@@ -143,6 +150,68 @@ export interface EscrowState {
 }
 
 const ZERO = "0x0000000000000000000000000000000000000000";
+
+export interface EscrowEntry extends EscrowState {
+  invoiceId: Hex;
+}
+
+/**
+ * Every escrow committed TO `payee`, newest first.
+ *
+ * There is no per-payee index on-chain — escrows are keyed by invoice id — so this
+ * finds them through the `Opened` event, whose payee is indexed. The event only tells
+ * us an escrow was opened, never its current state, so each hit is then re-read with
+ * statusOf: released amounts and closure come from the contract, not from replaying
+ * logs. That matters because Arc caps eth_getLogs at 10,000 blocks (-32614), so a
+ * log-only reconstruction would silently lose history the moment the chain outgrows
+ * one query.
+ *
+ * The scan is chunked from the deploy block for the same reason, and gives up rather
+ * than returning a partial list — a freelancer being shown 3 of their 5 committed
+ * escrows is worse than being told the read failed.
+ */
+export async function listEscrowsFor(
+  client: PublicClient,
+  payee: Address,
+): Promise<EscrowEntry[] | null> {
+  const address = escrowAddress();
+  if (!address) return null;
+
+  try {
+    const head = await client.getBlockNumber();
+    const opened = KRED_ESCROW_ABI.find(
+      (x) => x.type === "event" && x.name === "Opened",
+    );
+    if (!opened) return null;
+
+    const ids = new Set<Hex>();
+    for (let from = ESCROW_DEPLOY_BLOCK; from <= head; from += LOG_RANGE + 1n) {
+      const to = from + LOG_RANGE > head ? head : from + LOG_RANGE;
+      const logs = await client.getLogs({
+        address,
+        event: opened as never,
+        args: { payee } as never,
+        fromBlock: from,
+        toBlock: to,
+      });
+      for (const l of logs) {
+        const id = (l as { args?: { invoiceId?: Hex } }).args?.invoiceId;
+        if (id) ids.add(id);
+      }
+    }
+
+    // Current state per escrow, straight from the contract.
+    const out: EscrowEntry[] = [];
+    for (const id of ids) {
+      const s = await readEscrow(client, id);
+      if (s) out.push({ ...s, invoiceId: id });
+    }
+    // Soonest deadline first: what needs attention, not what happened first.
+    return out.sort((a, b) => a.deadline - b.deadline);
+  } catch {
+    return null;
+  }
+}
 
 /** Read one escrow. Returns null when the feature is off, the read fails, or no
  *  escrow exists at that id.
