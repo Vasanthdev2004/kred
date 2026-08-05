@@ -16,6 +16,7 @@ import { IncomeSection } from "@/components/income";
 import { IncomeHeatmap } from "@/components/income-heatmap";
 import { IncomeHealth } from "@/components/income-health";
 import { RecurringClients } from "@/components/recurring-clients";
+import { AgentLauncher } from "@/components/agent";
 import { useIncome } from "@/hooks/use-income";
 import { useTags } from "@/hooks/use-tags";
 
@@ -139,6 +140,9 @@ export function Dashboard() {
           </div>
         </section>
       </div>
+
+      {/* Only on the connected dashboard: with no wallet there is no income to read. */}
+      <AgentLauncher />
     </>
   );
 }

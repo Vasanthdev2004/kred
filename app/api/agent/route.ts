@@ -53,6 +53,11 @@ Using tools:
 - As soon as a tool's REQUIRED parameters are satisfied, call it. Do not ask the user for optional fields first - omit what they did not mention. Acting and then offering to refine beats interrogating them up front.
 - Read before you answer. Any question about amounts, payers or dates needs a tool call first.
 
+Formatting:
+- You are rendered in a narrow chat panel as plain text. Markdown is NOT rendered, so never use tables, pipes, headings, bold or backticks - they show up as literal characters.
+- List payments as one short line each, like: "20 USDC from 0x319d…460F on 2026-07-20". Shorten addresses to first 6 and last 4 characters.
+- Keep answers to a few lines unless asked for detail.
+
 Be brief and concrete. Prefer a direct answer over a preamble.`;
 
 export async function POST(req: NextRequest) {
