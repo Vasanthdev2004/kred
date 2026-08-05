@@ -20,6 +20,14 @@ interface Proposal {
   reason?: string;
 }
 
+interface DisclosurePreview {
+  periodStart?: string;
+  periodEnd?: string;
+  paymentCount?: number;
+  totals?: { token: string; amount: string }[];
+  willReveal?: string[];
+}
+
 interface Msg {
   id: number;
   role: "user" | "assistant";
@@ -27,6 +35,7 @@ interface Msg {
   /** Rendered under the message as things to act on, not prose to read. */
   proposals?: Proposal[];
   requestPath?: string;
+  disclosure?: DisclosurePreview;
 }
 
 const SUGGESTIONS = [
@@ -123,6 +132,7 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
       let acc = "";
       const proposals: Proposal[] = [];
       let requestPath: string | undefined;
+      let disclosure: DisclosurePreview | undefined;
 
       try {
         const res = await fetch("/api/agent", {
@@ -180,6 +190,8 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
                 proposals.push(...(ev.data as Proposal[]));
               } else if (ev.kind === "request") {
                 requestPath = (ev.data as { path?: string })?.path;
+              } else if (ev.kind === "disclosure") {
+                disclosure = ev.data as DisclosurePreview;
               }
             } else if (ev.type === "error" && ev.value) {
               acc += (acc ? "\n\n" : "") + ev.value;
@@ -196,7 +208,7 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
         setBusy(false);
         setState("idle");
         setStreaming("");
-        if (acc || proposals.length || requestPath) {
+        if (acc || proposals.length || requestPath || disclosure) {
           setMessages((m) => [
             ...m,
             {
@@ -205,6 +217,7 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
               text: acc,
               proposals: proposals.length ? proposals : undefined,
               requestPath,
+              disclosure,
             },
           ]);
         }
@@ -254,6 +267,53 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
     },
     [address, qc, dismiss],
   );
+
+  /** Bulk apply. Sequential rather than parallel: these are writes against the
+   *  user's own records and a burst of concurrent POSTs buys nothing but a harder
+   *  failure to reason about. Reports partial success honestly. */
+  const acceptAll = useCallback(
+    async (ps: Proposal[], msgId: number) => {
+      let ok = 0;
+      for (const p of ps) {
+        // eslint-disable-next-line no-await-in-loop
+        const done = await acceptOne(p);
+        if (done) {
+          ok += 1;
+          dismiss(p.txHash, msgId);
+        }
+      }
+      if (ok) qc.invalidateQueries({ queryKey: ["tags"] });
+      if (ok === ps.length) toast.success(`Tagged ${ok} payments`);
+      else if (ok) toast.warning(`Tagged ${ok} of ${ps.length}; the rest failed`);
+      else toast.error("Couldn't save those tags.");
+    },
+    // acceptOne is declared below and is stable for the life of the component
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [address, qc, dismiss],
+  );
+
+  /** Single write, no toast — shared by accept() and acceptAll() so bulk mode does
+   *  not fire one notification per row. */
+  async function acceptOne(p: Proposal): Promise<boolean> {
+    if (!address) return false;
+    try {
+      const res = await fetch("/api/tags", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          address,
+          txHash: p.txHash,
+          logIndex: 0,
+          client: p.client ?? null,
+          project: p.project ?? null,
+          category: p.category ?? null,
+        }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
 
   const empty = messages.length === 0 && !streaming;
 
@@ -307,13 +367,14 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
         )}
 
         {messages.map((m) => (
-          <Bubble key={m.id} msg={m} onAccept={accept} onDismiss={dismiss} />
+          <Bubble key={m.id} msg={m} onAccept={accept} onAcceptAll={acceptAll} onDismiss={dismiss} />
         ))}
 
         {streaming && (
           <Bubble
             msg={{ id: -1, role: "assistant", text: streaming }}
             onAccept={accept}
+            onAcceptAll={acceptAll}
             onDismiss={dismiss}
           />
         )}
@@ -366,10 +427,12 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
 function Bubble({
   msg,
   onAccept,
+  onAcceptAll,
   onDismiss,
 }: {
   msg: Msg;
   onAccept: (p: Proposal, msgId: number) => void;
+  onAcceptAll: (ps: Proposal[], msgId: number) => void;
   onDismiss: (txHash: string, msgId: number) => void;
 }) {
   const mine = msg.role === "user";
@@ -392,6 +455,25 @@ function Bubble({
         </div>
       )}
 
+      {/* Tagging a month of payments one card at a time is a chore, so offer the
+          bulk action — but only once there are enough to be worth it. */}
+      {(msg.proposals?.length ?? 0) > 1 && (
+        <div className="flex w-[88%] items-center justify-between rounded-lg border border-border/60 bg-secondary/30 px-3 py-2">
+          <span className="text-xs text-muted-foreground">
+            {msg.proposals!.length} suggestions
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1 text-xs"
+            onClick={() => onAcceptAll(msg.proposals!, msg.id)}
+          >
+            <Check className="size-3.5" />
+            Apply all
+          </Button>
+        </div>
+      )}
+
       {msg.proposals?.map((p) => (
         <ProposalCard
           key={p.txHash}
@@ -402,6 +484,7 @@ function Bubble({
       ))}
 
       {msg.requestPath && <RequestCard path={msg.requestPath} />}
+      {msg.disclosure && <DisclosureCard d={msg.disclosure} />}
     </div>
   );
 }
@@ -463,6 +546,75 @@ function ProposalCard({
           Skip
         </Button>
       </div>
+    </motion.div>
+  );
+}
+
+/** What a verify link would reveal, shown before one exists. The point is that the
+ *  user sees the disclosure before deciding, so this card never creates anything —
+ *  it ends at a link to /share where they do. */
+function DisclosureCard({ d }: { d: DisclosurePreview }) {
+  const period =
+    d.periodStart && d.periodEnd
+      ? d.periodStart === d.periodEnd
+        ? d.periodStart
+        : `${d.periodStart} to ${d.periodEnd}`
+      : null;
+
+  const OPTIONAL: Record<string, string> = {
+    period: "Period",
+    count: "Payment count",
+    clients: "Client count",
+    wallet: "Wallet address",
+  };
+  const revealed = d.willReveal ?? [];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-[88%] rounded-xl border border-border/70 bg-secondary/40 p-3"
+    >
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        Verify link preview · not created
+      </div>
+
+      {period && <div className="mt-1.5 text-sm font-medium">{period}</div>}
+
+      {/* Per token. Never a combined figure — there is no FX rate in this app. */}
+      <div className="mt-2 space-y-0.5">
+        {d.totals?.map((t) => (
+          <div key={t.token} className="font-mono text-sm nums">
+            {t.amount}{" "}
+            <span className="text-xs text-muted-foreground">{t.token}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-2 text-xs text-muted-foreground">
+        {d.paymentCount} payment{d.paymentCount === 1 ? "" : "s"} · totals and
+        backing transactions are always shown
+      </div>
+
+      {revealed.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {revealed.map((f) => (
+            <span
+              key={f}
+              className="rounded-md border border-primary/25 bg-primary/5 px-1.5 py-0.5 text-[11px]"
+            >
+              {OPTIONAL[f] ?? f}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <a
+        href="/share"
+        className="mt-3 inline-flex h-7 w-full items-center justify-center gap-1 rounded-md border border-border text-xs transition-colors hover:bg-secondary"
+      >
+        Create it on Share <ExternalLink className="size-3" />
+      </a>
     </motion.div>
   );
 }

@@ -338,8 +338,9 @@ async function prepDisclosure(
 export interface ToolOutcome {
   /** JSON string fed back to the model as the tool result. */
   result: string;
-  /** Structured payload for the UI to render (tag proposals, a draft link). */
-  surface?: { kind: "proposals" | "request"; data: unknown };
+  /** Structured payload for the UI to render as something to act on, rather than
+   *  prose for the model to narrate. */
+  surface?: { kind: "proposals" | "request" | "disclosure"; data: unknown };
 }
 
 /** Run one tool call. `owner` is null when no wallet is connected, in which case every
@@ -427,8 +428,24 @@ export async function runTool(
         };
       }
 
-      case "prep_disclosure":
-        return { result: await prepDisclosure(owner, args) };
+      case "prep_disclosure": {
+        const result = await prepDisclosure(owner, args);
+        const parsed = JSON.parse(result) as {
+          paymentCount?: number;
+          periodStart?: string;
+          periodEnd?: string;
+          totals?: { token: string; amount: string }[];
+          willReveal?: string[];
+        };
+        // Only surface a card when there is actually something to disclose;
+        // an empty range is a sentence, not a decision.
+        return {
+          result,
+          surface: parsed.paymentCount
+            ? { kind: "disclosure", data: parsed }
+            : undefined,
+        };
+      }
 
       default:
         return { result: JSON.stringify({ error: `unknown tool: ${name}` }) };

@@ -5,6 +5,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { AgentLauncher } from "@/components/agent";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
@@ -70,6 +71,8 @@ export default function RootLayout({
             <SiteHeader />
             <main className="flex-1">{children}</main>
             <SiteFooter />
+            {/* Self-gating: owner-only, hidden on public verify/pay pages. */}
+            <AgentLauncher />
           </div>
           <Toaster />
         </Providers>
