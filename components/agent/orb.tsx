@@ -162,20 +162,21 @@ export function AgentOrb({
       {/* specular highlight — cheap way to read as a sphere rather than a flat disc */}
       <ellipse cx="42" cy="40" rx="8" ry="6" fill="#FFFFFF" opacity="0.32" />
 
-      {/* the K, so it is unmistakably Kred and not a generic assistant blob */}
-      <text
-        x="50"
-        y="50"
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize="20"
-        fontWeight="700"
-        fill="#05231A"
-        opacity="0.82"
-        style={{ fontFamily: "system-ui, sans-serif" }}
+      {/* The real Kred K-mark, not a font glyph — same geometry as components/logo.tsx
+          (stem + upper arm + lower leg), scaled to sit inside the core. Rendered in
+          dark ink because the brand gradient would vanish against the green core. */}
+      <g
+        transform="translate(50 50) scale(0.52) translate(-52 -50)"
+        fill="#04241A"
+        stroke="#04241A"
+        strokeWidth="2.4"
+        strokeLinejoin="round"
+        opacity="0.88"
       >
-        K
-      </text>
+        <rect x="25" y="23" width="16" height="54" rx="5" strokeWidth="0" />
+        <path d="M44 47 L61 23 L79 23 Z" />
+        <path d="M44 53 L55 53 L80 77 L69 77 Z" />
+      </g>
     </svg>
   );
 }

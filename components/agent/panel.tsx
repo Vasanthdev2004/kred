@@ -37,6 +37,38 @@ const SUGGESTIONS = [
 
 let nextId = 1;
 
+/**
+ * Flatten the markdown the model still reaches for occasionally.
+ *
+ * The system prompt asks it not to, but a prompt is a request, not a guarantee — and
+ * when it slips, a pipe table arrives as literal `|---|---|` grid characters that
+ * blow out a 24rem panel. Cheaper and more reliable to strip it on the way in than to
+ * ship a markdown renderer for output that should have been plain lines anyway.
+ */
+function tidy(text: string): string {
+  return text
+    .split("\n")
+    .filter((l) => !/^\s*\|?[\s:|-]{6,}\|?\s*$/.test(l)) // separator rows
+    .map((l) => {
+      const t = l.trim();
+      if (t.startsWith("|") && t.endsWith("|")) {
+        // A table row becomes its cells, space-separated.
+        return t.slice(1, -1).split("|").map((c) => c.trim()).filter(Boolean).join("  ");
+      }
+      return l;
+    })
+    .join("\n")
+    .replace(/\*\*(.+?)\*\*/g, "$1") // bold
+    .replace(/`([^`]+)`/g, "$1") // inline code
+    .replace(/^#{1,6}\s+/gm, "") // headings
+    .replace(/\n{3,}/g, "\n\n")
+    // A plain hyphen is a valid line-break opportunity, so "2026-07-20" was
+    // splitting as "2026-07-" / "20" at the bubble edge. Non-breaking hyphens
+    // (U+2011) look identical and keep the date whole.
+    .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, "$1‑$2‑$3")
+    .trim();
+}
+
 export function AgentPanel({ onClose }: { onClose: () => void }) {
   const { address: wagmiAddress } = useAccount();
   const preview = usePreviewAddress();
@@ -236,7 +268,10 @@ export function AgentPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* transcript */}
-      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div
+        ref={scrollRef}
+        className="agent-scroll flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4"
+      >
         {empty && (
           <div className="pt-6 text-center">
             <AgentOrb state="idle" size={64} className="mx-auto" />
@@ -331,13 +366,17 @@ function Bubble({
       {msg.text && (
         <div
           className={cn(
-            "max-w-[88%] whitespace-pre-wrap rounded-xl px-3 py-2 text-sm leading-relaxed",
+            // break-words, deliberately NOT overflow-wrap:anywhere — `anywhere`
+            // breaks eagerly and was splitting dates as "2026-07-" / "20".
+            // break-word only breaks a token that cannot fit a line on its own,
+            // which still catches a full 42-char address.
+            "max-w-[88%] whitespace-pre-wrap break-words rounded-xl px-3 py-2 text-sm leading-relaxed",
             mine
               ? "bg-primary text-primary-foreground"
               : "border border-border/60 bg-secondary/50",
           )}
         >
-          {msg.text}
+          {tidy(msg.text)}
         </div>
       )}
 

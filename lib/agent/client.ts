@@ -92,10 +92,19 @@ export async function* streamChat(
   tools: ToolDef[],
   signal?: AbortSignal,
 ): AsyncGenerator<StreamEvent> {
-  const attempts = Math.max(1, keyCount());
+  // At least three tries even with a single key: Ollama Cloud returns transient 503s,
+  // and with one plan configured a key-count-based loop would give up on the first
+  // blip. More keys just means more of these attempts land on a different account.
+  const attempts = Math.max(3, keyCount());
   let lastError = "";
 
   for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) {
+      // Short backoff, aborted promptly if the user gave up on the reply.
+      await new Promise((r) => setTimeout(r, 400 * attempt));
+      if (signal?.aborted) return;
+    }
+
     const key = nextKey();
     if (!key) throw new Error("agent is not configured");
 
