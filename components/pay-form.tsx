@@ -17,6 +17,7 @@ import { ARC_TESTNET_ID, explorerTx } from "@/config/arc";
 import { shorten } from "@/lib/utils";
 import type { PaymentRequest } from "@/lib/request";
 import { GlassCard } from "@/components/ui/glass-card";
+import { EscrowPanel } from "@/components/escrow-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TokenBadge } from "@/components/token-badge";
@@ -96,7 +97,8 @@ export function PayForm({ request }: { request: PaymentRequest }) {
   }
 
   return (
-    <GlassCard className="p-6">
+    <>
+      <GlassCard className="p-6">
       <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-brand/15 blur-3xl" />
 
       <div className="relative flex items-center justify-between">
@@ -184,8 +186,13 @@ export function PayForm({ request }: { request: PaymentRequest }) {
               ? "Transaction rejected — tap to try again"
               : "Payment failed — tap to try again"}
           </button>
-        )}
-      </div>
-    </GlassCard>
+          )}
+        </div>
+      </GlassCard>
+
+      {/* Pay now, or commit the funds and release them as work is delivered.
+          Dormant until KredEscrow is deployed. */}
+      <EscrowPanel request={request} />
+    </>
   );
 }

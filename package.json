@@ -17,7 +17,8 @@
     "deploy:registry": "node scripts/deploy-registry.mjs",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "deploy:escrow": "node scripts/deploy-escrow.mjs"
   },
   "engines": {
     "node": ">=20"
