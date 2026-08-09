@@ -15,10 +15,12 @@ import {
   keccak256,
   toHex,
   isAddress,
+  encodeEventTopics,
   type Address,
   type Hex,
   type PublicClient,
 } from "viem";
+import { ARC } from "@/config/arc";
 import type { PaymentRequest } from "@/lib/request";
 
 export const KRED_ESCROW_ABI = [
@@ -184,37 +186,154 @@ export async function listEscrowsFor(
   const address = escrowAddress();
   if (!address) return null;
 
+  // Explorer first, chunked RPC only if it is unreachable.
+  let ids = await openedIdsFromExplorer(address, payee);
+  if (!ids) ids = await openedIdsFromRpc(client, address, payee);
+  if (!ids) return null;
+  if (ids.size === 0) return [];
+
+  // Current state per escrow, straight from the contract. One multicall rather than
+  // one eth_call each: Arc rate-limits rapid separate calls, and a rejected read
+  // decodes as zeros, which would render a real escrow as an empty one.
+  const list = [...ids];
   try {
-    const head = await client.getBlockNumber();
-    const opened = KRED_ESCROW_ABI.find(
-      (x) => x.type === "event" && x.name === "Opened",
-    );
-    if (!opened) return null;
-
-    const ids = new Set<Hex>();
-    for (let from = ESCROW_DEPLOY_BLOCK; from <= head; from += LOG_RANGE + 1n) {
-      const to = from + LOG_RANGE > head ? head : from + LOG_RANGE;
-      const logs = await client.getLogs({
+    const results = await client.multicall({
+      contracts: list.map((invoiceId) => ({
         address,
-        event: opened as never,
-        args: { payee } as never,
-        fromBlock: from,
-        toBlock: to,
-      });
-      for (const l of logs) {
-        const id = (l as { args?: { invoiceId?: Hex } }).args?.invoiceId;
-        if (id) ids.add(id);
-      }
-    }
+        abi: KRED_ESCROW_ABI,
+        functionName: "statusOf" as const,
+        args: [invoiceId] as const,
+      })),
+      allowFailure: true,
+    });
 
-    // Current state per escrow, straight from the contract.
     const out: EscrowEntry[] = [];
-    for (const id of ids) {
-      const s = await readEscrow(client, id);
-      if (s) out.push({ ...s, invoiceId: id });
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      // A failed read means an UNKNOWN escrow, not an absent one. Reporting the whole
+      // list as failed beats silently dropping a commitment the user is owed.
+      if (!r || r.status !== "success") return null;
+      const s = decodeStatus(r.result as StatusTuple);
+      if (s) out.push({ ...s, invoiceId: list[i] });
     }
     // Soonest deadline first: what needs attention, not what happened first.
     return out.sort((a, b) => a.deadline - b.deadline);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `Opened` invoice ids for a payee, in ONE request, via the explorer's log index.
+ *
+ * The chunked RPC scan below cannot carry this alone. Arc caps eth_getLogs at 10,000
+ * blocks, so the number of round trips grows with the chain — 83 of them by
+ * 2026-08-09, more every day — and the public RPC answers a burst that size with
+ * `-32005 rate limit exceeded`. A single rejected chunk failed the entire scan, which
+ * is why the inbox reliably read "couldn't read escrows from Arc".
+ *
+ * Returns null ONLY on a real failure. An empty result is an empty Set, because the
+ * explorer reports "no logs found" with status "0" — conflating that with an outage
+ * would tell a freelancer they have no committed funds when the truth is unknown.
+ */
+async function openedIdsFromExplorer(
+  address: Address,
+  payee: Address,
+): Promise<Set<Hex> | null> {
+  // Derived from the ABI, never hardcoded: a hand-copied topic hash silently matches
+  // nothing if the event signature ever changes.
+  let topic0: Hex | undefined;
+  let topicPayee: Hex | undefined;
+  try {
+    const topics = encodeEventTopics({
+      abi: KRED_ESCROW_ABI,
+      eventName: "Opened",
+      args: { payee },
+    });
+    topic0 = topics[0] as Hex | undefined;
+    topicPayee = topics[3] as Hex | undefined;
+  } catch {
+    return null;
+  }
+  if (!topic0 || !topicPayee) return null;
+
+  const url =
+    `${ARC.explorerUrl}/api?module=logs&action=getLogs` +
+    `&fromBlock=${ESCROW_DEPLOY_BLOCK}&toBlock=latest&address=${address}` +
+    `&topic0=${topic0}&topic3=${topicPayee}&topic0_3_opr=and`;
+
+  try {
+    const res = await fetch(url, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+
+    const j = (await res.json()) as { message?: string; result?: unknown };
+    if (!Array.isArray(j.result)) {
+      // The one non-array response that is a fact rather than a fault.
+      return /no logs found/i.test(String(j.message ?? "")) ? new Set<Hex>() : null;
+    }
+
+    const ids = new Set<Hex>();
+    for (const row of j.result) {
+      const t = (row as { topics?: unknown }).topics;
+      const id = Array.isArray(t) ? t[1] : undefined;
+      if (typeof id === "string" && /^0x[0-9a-fA-F]{64}$/.test(id)) {
+        ids.add(id.toLowerCase() as Hex);
+      }
+    }
+    return ids;
+  } catch {
+    return null;
+  }
+}
+
+/** Chunked RPC fallback for when the explorer is down. Each chunk is retried, because
+ *  the point of the fallback is to survive the rate limiting a burst of getLogs
+ *  provokes; unretried, it would be no better than what it replaced. */
+async function openedIdsFromRpc(
+  client: PublicClient,
+  address: Address,
+  payee: Address,
+): Promise<Set<Hex> | null> {
+  const opened = KRED_ESCROW_ABI.find(
+    (x) => x.type === "event" && x.name === "Opened",
+  );
+  if (!opened) return null;
+
+  try {
+    const head = await client.getBlockNumber();
+    const ids = new Set<Hex>();
+
+    for (let from = ESCROW_DEPLOY_BLOCK; from <= head; from += LOG_RANGE + 1n) {
+      const to = from + LOG_RANGE > head ? head : from + LOG_RANGE;
+
+      let logs: unknown[] | null = null;
+      for (let attempt = 0; attempt < 3 && !logs; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 250 * attempt));
+        try {
+          logs = await client.getLogs({
+            address,
+            event: opened as never,
+            args: { payee } as never,
+            fromBlock: from,
+            toBlock: to,
+          });
+        } catch {
+          logs = null;
+        }
+      }
+      // Give up rather than return a partial list: showing 3 of 5 committed escrows
+      // is worse than saying the read failed.
+      if (!logs) return null;
+
+      for (const l of logs) {
+        const id = (l as { args?: { invoiceId?: Hex } }).args?.invoiceId;
+        if (id) ids.add(id.toLowerCase() as Hex);
+      }
+    }
+    return ids;
   } catch {
     return null;
   }
@@ -238,25 +357,41 @@ export async function readEscrow(
       abi: KRED_ESCROW_ABI,
       functionName: "statusOf",
       args: [invoiceId],
-    })) as readonly [Address, Address, Address, bigint, bigint, bigint, boolean];
-
-    const [payer, payee, token, total, released, deadline, closed] = r;
-    if (payer.toLowerCase() === ZERO) return null;
-
-    const remaining = total - released;
-    const secs = Number(deadline);
-    return {
-      payer,
-      payee,
-      token,
-      total,
-      released,
-      remaining,
-      deadline: secs,
-      closed,
-      refundable: !closed && remaining > 0n && Date.now() / 1000 >= secs,
-    };
+    })) as StatusTuple;
+    return decodeStatus(r);
   } catch {
     return null;
   }
+}
+
+/** Raw `statusOf` return, shared by the single read and the batched one. */
+type StatusTuple = readonly [
+  Address,
+  Address,
+  Address,
+  bigint,
+  bigint,
+  bigint,
+  boolean,
+];
+
+/** One place that turns a statusOf tuple into state, so the single-read path and the
+ *  multicall path can never disagree about what "no escrow" looks like. */
+function decodeStatus(r: StatusTuple): EscrowState | null {
+  const [payer, payee, token, total, released, deadline, closed] = r;
+  if (payer.toLowerCase() === ZERO) return null;
+
+  const remaining = total - released;
+  const secs = Number(deadline);
+  return {
+    payer,
+    payee,
+    token,
+    total,
+    released,
+    remaining,
+    deadline: secs,
+    closed,
+    refundable: !closed && remaining > 0n && Date.now() / 1000 >= secs,
+  };
 }
