@@ -1,23 +1,35 @@
 /**
- * Ollama Cloud transport for the Kred agent.
+ * OpenAI-compatible chat transport for the Kred agent.
  *
- * Ollama Cloud speaks the OpenAI chat-completions wire format, so this is plain
- * `fetch` + SSE parsing rather than an SDK. That keeps the dependency count at zero
- * and means nothing here breaks when a vendor SDK changes its interface.
+ * Every provider worth using speaks the OpenAI chat-completions wire format, so this
+ * is plain `fetch` + SSE parsing rather than an SDK. Zero dependencies, and nothing
+ * here breaks when a vendor SDK changes its interface.
+ *
+ * The HOST is a variable, not a constant, and that is deliberate: this app already
+ * lost its inference provider once, mid-deadline, when the account behind it lapsed.
+ * A provider going away should be a Railway variable change and a redeploy, not a code
+ * change. Any host that accepts `/chat/completions` with `tools` and `stream: true`
+ * works — Ollama Cloud, Groq, Cerebras, OpenRouter, Together, or the Gemini
+ * OpenAI-compatibility endpoint.
  *
  * SERVER ONLY. The API keys must never reach the client bundle; this module is
  * imported exclusively by the route handler.
  */
 import { nextKey, rotateAfterFailure, keyCount } from "@/lib/agent/limits";
 
-const ENDPOINT = "https://ollama.com/v1/chat/completions";
+/** Full chat-completions URL, not a base — providers disagree about the path prefix
+ *  (`/v1`, `/openai/v1`, `/v1beta/openai`) and guessing it wrong is a silent 404. */
+const ENDPOINT =
+  process.env.AGENT_API_URL?.trim() || "https://ollama.com/v1/chat/completions";
 
 /** Tool calling is non-negotiable here — the assistant is useless if it answers from
  *  the prompt instead of reading the chain — so verify a replacement actually emits
- *  tool_calls before switching. Ollama Cloud retires models on a schedule (gemma3:27b
- *  went 410 on 2026-07-15), hence the env override: a retirement should be a variable
- *  change, not a deploy. */
-export const MODEL = process.env.OLLAMA_MODEL?.trim() || "gemma4:31b-cloud";
+ *  tool_calls before switching. Models get retired on a schedule (gemma3:27b went 410
+ *  on 2026-07-15) and whole providers lapse, so this is a variable too. */
+export const MODEL =
+  process.env.AGENT_MODEL?.trim() ||
+  process.env.OLLAMA_MODEL?.trim() ||
+  "gemma4:31b-cloud";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";

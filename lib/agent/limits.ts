@@ -16,15 +16,21 @@
  * can reset their budget by waiting for a deploy.
  */
 
-/** Keys, in priority order. Accepts either OLLAMA_API_KEY (single or comma-separated)
- *  or the numbered OLLAMA_API_KEY_1..N form. Server-only — never NEXT_PUBLIC_. */
+/** Keys, in priority order. Accepts a single key, a comma-separated list, or the
+ *  numbered _1..N form, under either the provider-neutral AGENT_API_KEY name or the
+ *  original OLLAMA_API_KEY one. Server-only — never NEXT_PUBLIC_. */
 function loadKeys(): string[] {
   const out: string[] = [];
-  const multi = process.env.OLLAMA_API_KEY;
-  if (multi) out.push(...multi.split(",").map((k) => k.trim()).filter(Boolean));
-  for (let i = 1; i <= 8; i++) {
-    const k = process.env[`OLLAMA_API_KEY_${i}`]?.trim();
-    if (k) out.push(k);
+  // Both names are read because the provider is now swappable and the running
+  // deployment still uses the old one; dropping it would turn a half-finished
+  // variable rename into a silent 503.
+  for (const base of ["AGENT_API_KEY", "OLLAMA_API_KEY"]) {
+    const multi = process.env[base];
+    if (multi) out.push(...multi.split(",").map((k) => k.trim()).filter(Boolean));
+    for (let i = 1; i <= 8; i++) {
+      const k = process.env[`${base}_${i}`]?.trim();
+      if (k) out.push(k);
+    }
   }
   return [...new Set(out)];
 }
