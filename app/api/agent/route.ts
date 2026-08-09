@@ -64,6 +64,41 @@ Formatting:
 
 Be brief and concrete. Prefer a direct answer over a preamble.`;
 
+/**
+ * A short, safe label for why the upstream call failed.
+ *
+ * Deliberately a whitelist rather than a sanitiser. The thrown message is built from
+ * provider responses, and a provider is free to echo whatever it likes back — including,
+ * one day, part of a request. Matching known shapes and discarding the rest means a
+ * surprise in the upstream body can never become a leak here.
+ */
+function failureReason(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+
+  if (/not configured/i.test(msg)) return "no API key configured";
+
+  const status = msg.match(/HTTP (\d{3})/)?.[1];
+  switch (status) {
+    case "401":
+    case "403":
+      return "provider rejected the API key (401/403)";
+    case "402":
+      return "provider says the plan is out of credit (402)";
+    case "404":
+      return "model not found on this provider (404) — check AGENT_MODEL";
+    case "410":
+      return "model has been retired (410) — set AGENT_MODEL to a current one";
+    case "429":
+      return "provider rate limit (429)";
+    default:
+      break;
+  }
+  if (status) return `provider returned HTTP ${status}`;
+  if (/timed? ?out|abort/i.test(msg)) return "provider timed out";
+  if (/fetch|network|ENOTFOUND|ECONNREFUSED/i.test(msg)) return "could not reach provider";
+  return "unknown upstream failure";
+}
+
 export async function POST(req: NextRequest) {
   if (!agentEnabled()) {
     return NextResponse.json(
@@ -165,6 +200,12 @@ export async function POST(req: NextRequest) {
           send({
             type: "error",
             value: "The assistant hit an error. Try again in a moment.",
+            // Why it failed, not just that it did. A provider outage, an expired
+            // plan and a retired model are three different problems that were all
+            // rendering as the same shrug, which cost an afternoon of guessing.
+            // Safe to expose: streamChat reports HTTP statuses and transport
+            // messages here, never a key, a prompt, or the user's data.
+            reason: failureReason(err),
           });
         }
       } finally {
