@@ -42,7 +42,7 @@ export const TOOLS: ToolDef[] = [
     function: {
       name: "get_income",
       description:
-        "Read the connected wallet's incoming USDC/EURC payments on Arc, newest first, with any memo or tag attached. Call this before answering any question about amounts, clients, or dates.",
+        "Read the connected wallet's incoming USDC/EURC payments on Arc, newest first, with any memo or tag attached. Also returns totalsByToken - the total received per currency across ALL payments, not just the ones listed - so use this for 'how much have I earned' as well. Call it before answering any question about amounts, clients, or dates.",
       parameters: {
         type: "object",
         properties: {
@@ -230,6 +230,23 @@ async function getIncome(owner: Address, limit: number): Promise<string> {
 
   const tagByTx = new Map(tags.map((t) => [t.txHash.toLowerCase(), t]));
 
+  // Per-token totals over EVERY payment, not just the ones listed below.
+  //
+  // Without this the agent had no way to answer "how much have I been paid", which
+  // is the first question anyone asks it. It cannot add the rows up itself — it is
+  // barred from stating a figure no tool produced, precisely so it can never quietly
+  // miscount someone's income — so it correctly but uselessly answered that it had
+  // no tool for the total. The fix belongs in the tool, not in the prompt.
+  //
+  // Kept per token: there is no FX rate anywhere in this app, so a single blended
+  // total would be a number that does not exist.
+  const totals = new Map<string, { amount: bigint; decimals: number }>();
+  for (const p of payments) {
+    const t = totals.get(p.tokenSymbol) ?? { amount: 0n, decimals: p.tokenDecimals };
+    t.amount += p.amount;
+    totals.set(p.tokenSymbol, t);
+  }
+
   return JSON.stringify({
     payments: payments.slice(0, clamp(limit, 1, 50, 25)).map((p) => {
       const tag = tagByTx.get(p.txHash.toLowerCase());
@@ -248,9 +265,21 @@ async function getIncome(owner: Address, limit: number): Promise<string> {
       };
     }),
     totalPayments: payments.length,
+    // Covers all `totalPayments`, not only the rows above — say so, because a total
+    // that silently described a 25-row slice would understate someone's income.
+    totalsByToken: [...totals].map(([token, t]) => ({
+      token,
+      amount: formatAmount(t.amount, t.decimals),
+    })),
     manualTagCount: tags.length,
     truncated,
-    note: `${NEVER_SUM} labelSource says where a label came from: an onchain memo cannot be removed by anyone, a manual tag can.`,
+    note:
+      `${NEVER_SUM} totalsByToken already covers every one of the ${payments.length} payments, ` +
+      `including any not listed above - quote it directly and never re-add the rows.` +
+      (truncated
+        ? " History is TRUNCATED: older payments exist beyond what was indexed, so present these totals as covering the indexed history, not all time."
+        : "") +
+      " labelSource says where a label came from: an onchain memo cannot be removed by anyone, a manual tag can.",
   });
 }
 
